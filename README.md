@@ -6,6 +6,7 @@ Daymark is a calm, responsive task manager built with vanilla HTML, CSS, and Jav
 
 - Create, edit, complete, and delete tasks.
 - Add task notes and searchable keywords.
+- Break work into checklists, track step completion, and keep progress when editing tasks.
 - Organize tasks into Personal, Work, Learning, and Health categories.
 - Add searchable keywords, set priorities and due dates, and sort tasks by due date or priority.
 - Use dedicated views for today's tasks, overdue tasks, upcoming tasks, and completed work.
