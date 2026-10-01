@@ -5,6 +5,7 @@ Daymark is a calm, responsive task manager built with vanilla HTML, CSS, and Jav
 ## Features
 
 - Create, edit, complete, and delete tasks.
+- Draft checklist steps, keywords, and a note for a task with the optional AI planner.
 - Add task notes and searchable keywords.
 - Break work into checklists, track step completion, and keep progress when editing tasks.
 - Organize tasks into Personal, Work, Learning, and Health categories.
@@ -20,7 +21,14 @@ Daymark is a calm, responsive task manager built with vanilla HTML, CSS, and Jav
 
 ## Run locally
 
-No package installation or build step is required. Open `index.html` in a modern browser, or serve the folder with a local development server such as the VS Code Live Server extension.
+Daymark's AI planner uses a small local Node.js server so your API key stays out of browser code. Node.js 20.12 or newer is required.
+
+1. Copy `.env.example` to `.env`.
+2. Add your OpenAI API key to `OPENAI_API_KEY` in `.env`. You can optionally change `OPENAI_MODEL` and `PORT`.
+3. Start Daymark with `npm start`.
+4. Open the local URL printed by the server (by default, `http://127.0.0.1:4173`).
+
+The AI planner sends the current task title and notes to OpenAI only when you click **Plan with AI**. The API key remains on the local server. Do not commit `.env`; it is ignored by Git. Other app features continue to work without an API key.
 
 ## Storage and sign-in
 

@@ -132,6 +132,55 @@ function parseSubtasks(value, existing = []) {
     });
 }
 
+async function generateTaskPlan() {
+    const title = document.getElementById('taskInput').value.trim();
+    const button = document.getElementById('aiPlanButton');
+    const status = document.getElementById('aiPlanStatus');
+    if (!title) {
+        status.textContent = 'Add a task title first.';
+        document.getElementById('taskInput').focus();
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = 'Planning…';
+    status.textContent = 'Creating a useful first draft…';
+    try {
+        const response = await fetch('/api/ai/plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title,
+                notes: document.getElementById('taskNotes').value.trim()
+            })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'The AI planner could not create a plan.');
+
+        const currentSubtasks = parseSubtasks(document.getElementById('taskSubtasks').value);
+        const suggestedSubtasks = Array.isArray(result.subtasks) ? result.subtasks : [];
+        document.getElementById('taskSubtasks').value = parseSubtasks(
+            [...currentSubtasks.map(subtask => subtask.text), ...suggestedSubtasks].join('\n'),
+            currentSubtasks
+        ).map(subtask => subtask.text).join('\n');
+
+        const currentKeywords = document.getElementById('taskKeywords').value;
+        const suggestedKeywords = Array.isArray(result.keywords) ? result.keywords : [];
+        document.getElementById('taskKeywords').value = parseKeywords(`${currentKeywords}, ${suggestedKeywords.join(', ')}`).join(', ');
+        if (!document.getElementById('taskNotes').value.trim() && typeof result.notes === 'string') {
+            document.getElementById('taskNotes').value = result.notes;
+        }
+        status.textContent = 'Plan drafted. Review it, then adjust anything you like.';
+    } catch (error) {
+        status.textContent = error instanceof TypeError
+            ? 'Could not reach the planner. Start Daymark with npm start and try again.'
+            : error.message;
+    } finally {
+        button.disabled = false;
+        button.innerHTML = '<span aria-hidden="true">✦</span> Plan with AI';
+    }
+}
+
 function showUndo(message, previousTasks) {
     undoSnapshot = previousTasks;
     document.getElementById('toastMessage').textContent = message;
@@ -522,6 +571,7 @@ document.getElementById('signOut').addEventListener('click', () => {
 });
 
 document.getElementById('taskForm').addEventListener('submit', addTask);
+document.getElementById('aiPlanButton').addEventListener('click', generateTaskPlan);
 document.getElementById('searchInput').addEventListener('input', render);
 document.getElementById('clearCompleted').addEventListener('click', () => {
     const previousTasks = [...tasks];

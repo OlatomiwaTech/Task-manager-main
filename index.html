@@ -224,6 +224,11 @@
             box-shadow: var(--shadow);
         }
         .composer-top { display: flex; gap: 12px; }
+        .composer-top .task-input { flex: 1 1 auto; }
+        .ai-plan-button { display: inline-flex; min-height: 40px; flex: 0 0 auto; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid #dce5da; border-radius: 5px; background: #f4f7f1; color: var(--green-dark); cursor: pointer; font-size: 11px; font-weight: 700; white-space: nowrap; transition: background .18s ease, border-color .18s ease; }
+        .ai-plan-button:hover { border-color: #b7c8b5; background: #eaf1e7; }
+        .ai-plan-button:disabled { cursor: wait; opacity: .65; }
+        .ai-plan-status { min-height: 15px; margin: 8px 2px 0; color: var(--green); font-size: 10px; }
         .task-input { width: 100%; min-width: 0; padding: 8px 4px 13px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); font-size: 15px; outline: none; }
         .task-input::placeholder { color: #a3aaa2; }
         .task-input:focus { border-bottom-color: var(--green); outline: none; }
@@ -343,6 +348,7 @@
             .stat { padding: 12px 10px; }
             .stat-value { font-size: 21px; }
             .composer { padding: 13px; }
+            .ai-plan-button { gap: 5px; padding: 0 8px; font-size: 10px; }
             .composer-controls { flex-wrap: wrap; }
             .field-control { flex: 1 1 calc(50% - 8px); }
             .add-button { flex: 1 0 100%; justify-content: center; margin: 1px 0 0; }
@@ -443,7 +449,8 @@
                 </section>
 
                 <form class="composer" id="taskForm">
-                    <div class="composer-top"><input class="task-input" id="taskInput" type="text" maxlength="160" placeholder="What needs your attention?" aria-label="Task name" autocomplete="off" required></div>
+                    <div class="composer-top"><input class="task-input" id="taskInput" type="text" maxlength="160" placeholder="What needs your attention?" aria-label="Task name" autocomplete="off" required><button class="ai-plan-button" id="aiPlanButton" type="button"><span aria-hidden="true">✦</span> Plan with AI</button></div>
+                    <p class="ai-plan-status" id="aiPlanStatus" role="status" aria-live="polite"></p>
                     <textarea class="task-input task-note-input" id="taskNotes" rows="2" maxlength="1000" placeholder="Add a note or a little context (optional)" aria-label="Task notes"></textarea>
                     <textarea class="task-input task-subtask-input" id="taskSubtasks" rows="2" maxlength="1000" placeholder="Checklist: one step per line (optional)" aria-label="Task checklist"></textarea>
                     <div class="composer-controls">
