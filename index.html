@@ -227,6 +227,7 @@
         .task-input { width: 100%; min-width: 0; padding: 8px 4px 13px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); font-size: 15px; outline: none; }
         .task-input::placeholder { color: #a3aaa2; }
         .task-input:focus { border-bottom-color: var(--green); outline: none; }
+        .task-note-input { min-height: 42px; margin-top: 4px; resize: vertical; color: #68766b; font-size: 12px; }
         .composer-controls { display: flex; align-items: center; gap: 9px; padding-top: 13px; }
         .field-control { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: #fffefa; color: #657068; font-size: 11px; }
         .field-control:focus { border-color: #9aae9c; outline: none; }
@@ -243,6 +244,9 @@
         .search-input { width: 185px; height: 34px; padding: 0 10px 0 30px; border: 1px solid #e2e6dd; border-radius: 5px; background: rgba(255,254,250,.8); color: var(--ink); font-size: 11px; }
         .clear-button { padding: 6px 0; border: 0; background: transparent; color: #8b938b; cursor: pointer; font-size: 11px; }
         .clear-button:hover { color: var(--coral); }
+        .import-button { padding: 6px 0; border: 0; background: transparent; color: #748778; cursor: pointer; font-size: 11px; }
+        .import-button:hover { color: var(--green-dark); }
+        .file-input-hidden { display: none; }
         .sort-select { height: 34px; padding: 0 25px 0 9px; border: 1px solid #e2e6dd; border-radius: 5px; background: rgba(255,254,250,.8); color: #657068; font-size: 11px; }
 
         .filter-tabs { display: flex; gap: 19px; margin-bottom: 12px; border-bottom: 1px solid #e4e7df; }
@@ -257,6 +261,7 @@
         .task-item.completed .complete-button { border-color: var(--green); background: var(--green); }
         .task-content { min-width: 0; flex: 1; }
         .task-name { overflow-wrap: anywhere; font-size: 13px; font-weight: 550; line-height: 1.45; }
+        .task-note { display: -webkit-box; overflow: hidden; margin-top: 5px; color: #7d887e; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
         .task-item.completed .task-name { color: #9aa29b; text-decoration: line-through; text-decoration-color: #afb6ad; }
         .task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 5px; color: #8c958c; font-size: 10px; }
         .task-keywords { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
@@ -287,7 +292,8 @@
         .dialog-heading { margin: 0 0 5px; font-family: Georgia, serif; font-size: 25px; font-weight: 400; }
         .dialog-caption { margin: 0 0 20px; color: var(--muted); font-size: 12px; }
         .dialog-field { display: grid; gap: 7px; margin-top: 13px; color: #647067; font-size: 11px; font-weight: 650; }
-        .dialog-field input, .dialog-field select { width: 100%; min-height: 39px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: white; color: var(--ink); font-size: 13px; }
+        .dialog-field input, .dialog-field select, .dialog-field textarea { width: 100%; min-height: 39px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 5px; background: white; color: var(--ink); font: inherit; font-size: 13px; }
+        .dialog-field textarea { resize: vertical; }
         .dialog-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 22px; }
         .dialog-button { min-height: 36px; padding: 0 14px; border: 1px solid var(--line); border-radius: 5px; background: white; color: #647067; cursor: pointer; font-size: 12px; }
         .dialog-button.primary { border-color: var(--green); background: var(--green); color: white; }
@@ -431,6 +437,7 @@
 
                 <form class="composer" id="taskForm">
                     <div class="composer-top"><input class="task-input" id="taskInput" type="text" maxlength="160" placeholder="What needs your attention?" aria-label="Task name" autocomplete="off" required></div>
+                    <textarea class="task-input task-note-input" id="taskNotes" rows="2" maxlength="1000" placeholder="Add a note or a little context (optional)" aria-label="Task notes"></textarea>
                     <div class="composer-controls">
                         <select class="field-control" id="taskCategory" aria-label="Task category"><option>Personal</option><option>Work</option><option>Learning</option><option>Health</option></select>
                         <select class="field-control" id="taskPriority" aria-label="Task priority"><option value="normal">Normal priority</option><option value="high">High priority</option><option value="low">Low priority</option></select>
@@ -447,6 +454,8 @@
                         <div class="list-tools">
                             <label class="search-wrap"><span class="search-icon" aria-hidden="true">⌕</span><input class="search-input" id="searchInput" type="search" placeholder="Search tasks" aria-label="Search tasks"></label>
                             <select class="sort-select" id="sortTasks" aria-label="Sort tasks"><option value="newest">Recently added</option><option value="due">Due date</option><option value="priority">Priority</option></select>
+                            <button class="import-button" id="importTasksButton" type="button">↑ Import</button>
+                            <input class="file-input-hidden" id="importTasksFile" type="file" accept=".json,application/json" aria-label="Choose a task export file">
                             <button class="clear-button" id="clearCompleted" type="button">Clear completed</button>
                         </div>
                     </div>
@@ -470,6 +479,7 @@
             <label class="dialog-field">Repeat<select id="editTaskRecurrence"><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
             <label class="dialog-field">Due date<input id="editTaskDueDate" type="date"></label>
             <label class="dialog-field">Keywords<input id="editTaskKeywords" maxlength="160" placeholder="Comma-separated keywords"></label>
+            <label class="dialog-field">Notes<textarea id="editTaskNotes" maxlength="1000" rows="4" placeholder="Add useful context"></textarea></label>
             <div class="dialog-actions"><button class="dialog-button" id="cancelEdit" type="button">Cancel</button><button class="dialog-button primary" type="submit">Save changes</button></div>
         </form>
     </dialog>

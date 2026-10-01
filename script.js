@@ -55,6 +55,7 @@ function loadTasks(email) {
             priority: priorityColors[task.priority] ? task.priority : 'normal',
             dueDate: typeof task.dueDate === 'string' ? task.dueDate : '',
             recurrence: ['daily', 'weekly', 'monthly'].includes(task.recurrence) ? task.recurrence : 'none',
+            notes: typeof task.notes === 'string' ? task.notes.slice(0, 1000) : '',
             keywords: Array.isArray(task.keywords) ? [...new Set(task.keywords.map(keyword => String(keyword).trim().replace(/^#+/, '').toLocaleLowerCase()).filter(Boolean))].slice(0, 8) : []
         })).filter(task => task.text);
     } catch {
@@ -93,10 +94,12 @@ function addTask(event) {
         priority: document.getElementById('taskPriority').value,
         dueDate: document.getElementById('taskDueDate').value,
         recurrence: document.getElementById('taskRecurrence').value,
+        notes: document.getElementById('taskNotes').value.trim().slice(0, 1000),
         keywords: parseKeywords(document.getElementById('taskKeywords').value)
     });
     input.value = '';
     document.getElementById('taskDueDate').value = '';
+    document.getElementById('taskNotes').value = '';
     document.getElementById('taskKeywords').value = '';
     currentView = 'all';
     currentFilter = 'all';
@@ -112,6 +115,7 @@ function parseKeywords(value) {
 function showUndo(message, previousTasks) {
     undoSnapshot = previousTasks;
     document.getElementById('toastMessage').textContent = message;
+    document.getElementById('undoAction').hidden = !previousTasks;
     document.getElementById('toast').hidden = false;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => {
@@ -129,6 +133,7 @@ function editTask(id) {
     document.getElementById('editTaskPriority').value = task.priority;
     document.getElementById('editTaskRecurrence').value = task.recurrence;
     document.getElementById('editTaskDueDate').value = task.dueDate;
+    document.getElementById('editTaskNotes').value = task.notes;
     document.getElementById('editTaskKeywords').value = task.keywords.join(', ');
     document.getElementById('editDialog').showModal();
     document.getElementById('editTaskName').focus();
@@ -180,7 +185,7 @@ function getVisibleTasks() {
         const matchesFilter = currentFilter === 'all' ||
             (currentFilter === 'active' && !task.completed) ||
             (currentFilter === 'completed' && task.completed);
-        return matchesView && matchesFilter && `${task.text} ${task.category} ${task.priority} ${task.keywords.join(' ')}`.toLocaleLowerCase().includes(query);
+        return matchesView && matchesFilter && `${task.text} ${task.notes} ${task.category} ${task.priority} ${task.keywords.join(' ')}`.toLocaleLowerCase().includes(query);
     });
     const sortBy = document.getElementById('sortTasks').value;
     if (sortBy === 'due') return visibleTasks.sort((first, second) => (first.dueDate || '9999-12-31').localeCompare(second.dueDate || '9999-12-31'));
@@ -207,6 +212,12 @@ function renderTask(task) {
     const name = document.createElement('div');
     name.className = 'task-name';
     name.textContent = task.text;
+    if (task.notes) {
+        const note = document.createElement('div');
+        note.className = 'task-note';
+        note.textContent = task.notes;
+        content.append(name, note);
+    }
     const meta = document.createElement('div');
     meta.className = 'task-meta';
 
@@ -227,7 +238,7 @@ function renderTask(task) {
         repeat.innerHTML = `↻ ${task.recurrence[0].toUpperCase()}${task.recurrence.slice(1)}`;
         meta.append(repeat);
     }
-    content.append(name, meta);
+    content.append(meta);
     if (task.keywords.length) {
         const keywordList = document.createElement('div');
         keywordList.className = 'task-keywords';
@@ -485,6 +496,7 @@ document.getElementById('editForm').addEventListener('submit', event => {
         priority: document.getElementById('editTaskPriority').value,
         dueDate: document.getElementById('editTaskDueDate').value,
         recurrence: document.getElementById('editTaskRecurrence').value,
+        notes: document.getElementById('editTaskNotes').value.trim().slice(0, 1000),
         keywords: parseKeywords(document.getElementById('editTaskKeywords').value)
     } : task);
     document.getElementById('editDialog').close();
@@ -498,6 +510,40 @@ document.getElementById('exportTasks').addEventListener('click', () => {
     link.click();
     URL.revokeObjectURL(link.href);
 });
+
+async function importTasksFromFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    try {
+        if (file.size > 2 * 1024 * 1024) throw new Error('The file is larger than 2 MB.');
+        const data = JSON.parse(await file.text());
+        const rows = Array.isArray(data) ? data : data && Array.isArray(data.tasks) ? data.tasks : [];
+        const imported = rows.slice(0, 500).filter(task => task && typeof task.text === 'string' && task.text.trim()).map(task => ({
+            id: crypto.randomUUID(),
+            text: task.text.trim().slice(0, 160),
+            completed: Boolean(task.completed),
+            category: categoryColors[task.category] ? task.category : 'Personal',
+            priority: priorityColors[task.priority] ? task.priority : 'normal',
+            dueDate: typeof task.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(task.dueDate) ? task.dueDate : '',
+            recurrence: ['daily', 'weekly', 'monthly'].includes(task.recurrence) ? task.recurrence : 'none',
+            notes: typeof task.notes === 'string' ? task.notes.trim().slice(0, 1000) : '',
+            keywords: Array.isArray(task.keywords) ? parseKeywords(task.keywords.join(',')) : parseKeywords(typeof task.keywords === 'string' ? task.keywords : '')
+        }));
+        if (!imported.length) throw new Error('No valid tasks were found in that file.');
+        const previousTasks = [...tasks];
+        tasks = [...imported, ...tasks];
+        saveAndRender();
+        showUndo(`Imported ${imported.length} task${imported.length === 1 ? '' : 's'}`, previousTasks);
+    } catch (error) {
+        const message = error.message.startsWith('The file') || error.message.startsWith('No valid') ? error.message : 'Could not read that file. Choose a Daymark JSON export.';
+        showUndo(message, null);
+    } finally {
+        event.target.value = '';
+    }
+}
+
+document.getElementById('importTasksButton').addEventListener('click', () => document.getElementById('importTasksFile').click());
+document.getElementById('importTasksFile').addEventListener('change', importTasksFromFile);
 
 function renderFocusClock() {
     const minutes = Math.floor(focusSeconds / 60).toString().padStart(2, '0');
