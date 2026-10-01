@@ -274,9 +274,12 @@
         .task-input:focus { border-bottom-color: var(--green); outline: none; }
         .task-note-input { min-height: 42px; margin-top: 4px; resize: vertical; color: #68766b; font-size: 12px; }
         .task-subtask-input { min-height: 50px; margin-top: 4px; resize: vertical; color: #68766b; font-size: 12px; }
-        .composer-controls { display: flex; align-items: center; gap: 9px; padding-top: 13px; }
-        .field-control { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: #fffefa; color: #657068; font-size: 11px; }
+        .composer-controls { display: flex; align-items: center; gap: 9px; padding-top: 13px; flex-wrap: wrap; }
+        .field-control { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: #fffefa; color: #657068; font-size: 11px; appearance: none; -webkit-appearance: none; -moz-appearance: none; }
         .field-control:focus { border-color: #9aae9c; outline: none; }
+        select.field-control { background-image: linear-gradient(45deg, transparent 50%, #6b7b6f 50%), linear-gradient(135deg, #6b7b6f 50%, transparent 50%); background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 11px) calc(50% - 2px); background-size: 5px 5px; background-repeat: no-repeat; padding-right: 28px; }
+        input[type="date"].field-control, input[type="datetime-local"].field-control { background-image: none; padding-right: 10px; }
+        input[type="date"].field-control::-webkit-calendar-picker-indicator, input[type="datetime-local"].field-control::-webkit-calendar-picker-indicator { opacity: .7; cursor: pointer; }
         .repeat-control { max-width: 145px; }
         .keyword-input { min-width: 160px; flex: 1 1 180px; }
         .add-button { display: inline-flex; min-height: 36px; align-items: center; gap: 8px; margin-left: auto; padding: 0 15px; border: 0; border-radius: 5px; background: var(--green); color: white; cursor: pointer; font-size: 12px; font-weight: 650; transition: background .18s ease, transform .18s ease; }
@@ -442,6 +445,8 @@
         [data-theme="dark"] .auth-field { color: #c4cec5; }
         [data-theme="dark"] .auth-field input, [data-theme="dark"] .task-input, [data-theme="dark"] .field-control, [data-theme="dark"] .search-input, [data-theme="dark"] .sort-select, [data-theme="dark"] .dialog-field input, [data-theme="dark"] .dialog-field select, [data-theme="dark"] .dialog-field textarea { border-color: #3a473d; background-color: #151d18; color: var(--ink); }
         [data-theme="dark"] .auth-field input::placeholder, [data-theme="dark"] .task-input::placeholder { color: #859388; }
+        [data-theme="dark"] .field-control, [data-theme="dark"] select.field-control, [data-theme="dark"] input[type="date"].field-control, [data-theme="dark"] input[type="datetime-local"].field-control { border-color: #3a473d; background-color: #151d18; color: var(--ink); }
+        [data-theme="dark"] select.field-control { background-image: linear-gradient(45deg, transparent 50%, #c0cec2 50%), linear-gradient(135deg, #c0cec2 50%, transparent 50%); }
         [data-theme="dark"] .auth-divider { color: #a2ada3; }
         [data-theme="dark"] .auth-divider::before, [data-theme="dark"] .auth-divider::after { background: #354138; }
         [data-theme="dark"] .google-button { border-color: #3a473d; background: #222d25; color: #edf2ed; }
