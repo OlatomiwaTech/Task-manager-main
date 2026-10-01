@@ -235,6 +235,17 @@
         .stat-label { color: var(--muted); font-size: 11px; }
         .stat-value { display: flex; align-items: baseline; gap: 7px; margin-top: 7px; font-family: Georgia, "Times New Roman", serif; font-size: 25px; }
         .stat-value small { color: #899188; font-family: "Aptos", "Segoe UI", sans-serif; font-size: 11px; }
+        .weekly-review { display: flex; align-items: end; gap: 34px; margin: -5px 0 27px; padding: 0 3px 20px; border-bottom: 1px solid var(--line); }
+        .weekly-copy { min-width: 155px; }
+        .weekly-copy strong { display: block; color: var(--ink); font-family: Georgia, serif; font-size: 17px; font-weight: 400; }
+        .weekly-copy span { display: block; margin-top: 5px; color: var(--muted); font-size: 10px; }
+        .weekly-total { margin-top: 10px; color: var(--green); font-size: 12px; font-weight: 700; }
+        .week-chart { display: grid; min-width: 0; flex: 1; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; }
+        .week-day { display: grid; grid-template-rows: 45px auto; gap: 6px; color: var(--muted); font-size: 9px; text-align: center; }
+        .week-bar-track { display: flex; align-items: flex-end; overflow: hidden; border-radius: 3px; background: rgba(71, 107, 82, .08); }
+        .week-bar { width: 100%; min-height: 2px; height: var(--bar-height); border-radius: 3px 3px 0 0; background: #78977b; transition: height .35s ease; }
+        .week-day.today { color: var(--green-dark); font-weight: 700; }
+        .week-day.today .week-bar { background: var(--green); }
 
         .composer {
             margin-bottom: 31px;
@@ -250,6 +261,10 @@
         .ai-plan-button:hover { border-color: #b7c8b5; background: #eaf1e7; }
         .ai-plan-button:disabled { cursor: wait; opacity: .65; }
         .ai-plan-status { min-height: 15px; margin: 8px 2px 0; color: var(--green); font-size: 10px; }
+        .quick-parse-button { display: inline-flex; min-height: 40px; flex: 0 0 auto; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 650; white-space: nowrap; }
+        .quick-parse-button:hover { border-color: #b7c8b5; color: var(--green-dark); }
+        .quick-parse-status { min-height: 0; margin: 0; color: var(--muted); font-size: 10px; }
+        .reminder-status { min-height: 0; margin: 4px 2px 0; color: var(--muted); font-size: 10px; }
         .task-input { width: 100%; min-width: 0; padding: 8px 4px 13px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); font-size: 15px; outline: none; }
         .task-input::placeholder { color: #a3aaa2; }
         .task-input:focus { border-bottom-color: var(--green); outline: none; }
@@ -282,6 +297,10 @@
         .filter-button.active::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: var(--green); content: ""; }
         .task-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
         .task-item { display: flex; min-height: 70px; align-items: center; gap: 14px; padding: 13px 15px; border: 1px solid #e7e9e1; border-radius: 6px; background: var(--surface); animation: enter .24s ease both; }
+        .task-item[draggable="true"] { cursor: grab; }
+        .task-item.dragging { opacity: .45; }
+        .drag-handle { display: none; flex: 0 0 auto; color: #9aa49b; font-size: 14px; }
+        .task-item[draggable="true"] .drag-handle { display: block; }
         @keyframes enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .complete-button { display: grid; width: 20px; height: 20px; flex: 0 0 auto; place-items: center; padding: 0; border: 1.5px solid #c9d1c8; border-radius: 50%; background: transparent; color: white; cursor: pointer; font-size: 12px; }
         .complete-button:hover { border-color: var(--green); }
@@ -337,6 +356,10 @@
         .focus-task-label { min-height: 18px; margin: 0; color: var(--muted); font-size: 12px; text-align: center; }
         .focus-status { min-height: 18px; margin: 8px 0 0; color: var(--green); font-size: 11px; text-align: center; }
         .focus-controls { display: flex; justify-content: center; gap: 9px; margin-top: 16px; }
+        .focus-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+        .focus-options label { display: grid; gap: 6px; color: var(--muted); font-size: 10px; }
+        .focus-options select { width: 100%; min-height: 36px; padding: 0 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--ink); font: inherit; font-size: 11px; }
+        .focus-history { margin: 12px 0 0; color: var(--muted); font-size: 10px; text-align: center; }
 
         @media (max-width: 760px) {
             .app-shell { grid-template-columns: minmax(0, 1fr); }
@@ -366,6 +389,11 @@
             .heading-row { align-items: flex-start; flex-direction: column; gap: 16px; margin-bottom: 22px; }
             .progress-panel { width: 100%; }
             .stats-row { gap: 7px; margin-bottom: 20px; }
+            .weekly-review { align-items: flex-start; flex-direction: column; gap: 14px; margin-bottom: 22px; }
+            .weekly-copy { display: flex; width: 100%; align-items: baseline; justify-content: space-between; gap: 10px; }
+            .weekly-copy span { margin-top: 0; }
+            .weekly-total { margin-top: 0; }
+            .week-chart { width: 100%; gap: 6px; }
             .stat { padding: 12px 10px; }
             .stat-value { font-size: 21px; }
             .composer { padding: 13px; }
@@ -448,6 +476,8 @@
         [data-theme="dark"] .shortcut-list kbd { border-color: #3d4b40; background: #242f27; color: #c8ddca; }
         [data-theme="dark"] .focus-clock { border-color: #3d4c40; background: radial-gradient(circle, #1b241e 60%, #304235 61%, #304235 69%, #1b241e 70%); color: #d8e9d9; }
         [data-theme="dark"] .focus-task-label { color: #adb9ae; }
+        [data-theme="dark"] .focus-options label, [data-theme="dark"] .focus-history { color: #adb9ae; }
+        [data-theme="dark"] .focus-options select { border-color: #3a473d; background: #151d18; color: var(--ink); }
     </style>
 </head>
 <body>
@@ -530,11 +560,16 @@
                         <div class="stat"><div class="stat-label">Due today</div><div class="stat-value"><span id="dueStat">0</span><small>on your list</small></div></div>
                         <div class="stat"><div class="stat-label">Completed</div><div class="stat-value"><span id="doneStat">0</span><small>all time</small></div></div>
                     </div>
+                    <section class="weekly-review" aria-label="Seven-day completion insights">
+                        <div class="weekly-copy"><div><strong>Seven-day pulse</strong><span>Your recent follow-through</span></div><div class="weekly-total" id="weeklyTotal">0 completed</div></div>
+                        <div class="week-chart" id="weekChart" aria-label="Tasks completed per day this week"></div>
+                    </section>
                 </section>
 
                 <form class="composer" id="taskForm">
-                    <div class="composer-top"><input class="task-input" id="taskInput" type="text" maxlength="160" placeholder="What needs your attention?" aria-label="Task name" autocomplete="off" required><button class="ai-plan-button" id="aiPlanButton" type="button"><span aria-hidden="true">✦</span> Plan with AI</button></div>
+                    <div class="composer-top"><input class="task-input" id="taskInput" type="text" maxlength="160" placeholder="What needs your attention?" aria-label="Task name" autocomplete="off" required><button class="quick-parse-button" id="parseNaturalTask" type="button" title="Extract date, priority, repeat, and keywords from this text"><span aria-hidden="true">↳</span> Parse</button><button class="ai-plan-button" id="aiPlanButton" type="button"><span aria-hidden="true">✦</span> Plan with AI</button></div>
                     <p class="ai-plan-status" id="aiPlanStatus" role="status" aria-live="polite"></p>
+                    <p class="quick-parse-status" id="quickParseStatus" role="status" aria-live="polite"></p>
                     <textarea class="task-input task-note-input" id="taskNotes" rows="2" maxlength="1000" placeholder="Add a note or a little context (optional)" aria-label="Task notes"></textarea>
                     <textarea class="task-input task-subtask-input" id="taskSubtasks" rows="2" maxlength="1000" placeholder="Checklist: one step per line (optional)" aria-label="Task checklist"></textarea>
                     <div class="composer-controls">
@@ -542,9 +577,11 @@
                         <select class="field-control" id="taskPriority" aria-label="Task priority"><option value="normal">Normal priority</option><option value="high">High priority</option><option value="low">Low priority</option></select>
                         <select class="field-control repeat-control" id="taskRecurrence" aria-label="Repeat task"><option value="none">Does not repeat</option><option value="daily">Repeat daily</option><option value="weekly">Repeat weekly</option><option value="monthly">Repeat monthly</option></select>
                         <input class="field-control" id="taskDueDate" type="date" aria-label="Due date">
+                        <input class="field-control" id="taskReminderAt" type="datetime-local" aria-label="Reminder date and time">
                         <input class="field-control keyword-input" id="taskKeywords" type="text" maxlength="160" placeholder="Keywords, comma-separated" aria-label="Task keywords">
                         <button class="add-button" type="submit"><span aria-hidden="true">＋</span> Add task</button>
                     </div>
+                    <p class="reminder-status" id="reminderStatus" role="status" aria-live="polite"></p>
                 </form>
 
                 <section aria-labelledby="listTitle">
@@ -552,7 +589,7 @@
                         <h2 class="list-title" id="listTitle">Today's focus</h2>
                         <div class="list-tools">
                             <label class="search-wrap"><span class="search-icon" aria-hidden="true">⌕</span><input class="search-input" id="searchInput" type="search" placeholder="Search tasks" aria-label="Search tasks"></label>
-                            <select class="sort-select" id="sortTasks" aria-label="Sort tasks"><option value="newest">Recently added</option><option value="due">Due date</option><option value="priority">Priority</option></select>
+                            <select class="sort-select" id="sortTasks" aria-label="Sort tasks"><option value="newest">Recently added</option><option value="manual">Manual order</option><option value="due">Due date</option><option value="priority">Priority</option></select>
                             <button class="import-button" id="importTasksButton" type="button">↑ Import</button>
                             <input class="file-input-hidden" id="importTasksFile" type="file" accept=".json,application/json" aria-label="Choose a task export file">
                             <button class="clear-button" id="clearCompleted" type="button">Clear completed</button>
@@ -577,6 +614,7 @@
             <label class="dialog-field">Priority<select id="editTaskPriority"><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></label>
             <label class="dialog-field">Repeat<select id="editTaskRecurrence"><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
             <label class="dialog-field">Due date<input id="editTaskDueDate" type="date"></label>
+            <label class="dialog-field">Reminder<input id="editTaskReminderAt" type="datetime-local"></label>
             <label class="dialog-field">Keywords<input id="editTaskKeywords" maxlength="160" placeholder="Comma-separated keywords"></label>
             <label class="dialog-field">Notes<textarea id="editTaskNotes" maxlength="1000" rows="4" placeholder="Add useful context"></textarea></label>
             <label class="dialog-field">Checklist<textarea id="editTaskSubtasks" maxlength="1000" rows="5" placeholder="One step per line"></textarea></label>
@@ -594,10 +632,12 @@
     <dialog class="edit-dialog" id="focusDialog" aria-labelledby="focusTitle">
         <div class="dialog-content">
             <h2 class="dialog-heading" id="focusTitle">Focus session</h2>
-            <p class="dialog-caption">One task. Twenty-five quiet minutes.</p>
+            <p class="dialog-caption">Choose a work block and a break length.</p>
             <p class="focus-task-label" id="focusTaskLabel">A little focused time goes a long way.</p>
+            <div class="focus-options"><label>Focus length<select id="focusDuration"><option value="15">15 minutes</option><option value="25" selected>25 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option></select></label><label>Break length<select id="focusBreakDuration"><option value="5" selected>5 minutes</option><option value="10">10 minutes</option><option value="15">15 minutes</option></select></label></div>
             <div class="focus-clock" id="focusClock" role="timer" aria-live="off">25:00</div>
             <p class="focus-status" id="focusStatus">Ready when you are.</p>
+            <p class="focus-history" id="focusHistory">No completed focus sessions yet.</p>
             <div class="focus-controls"><button class="dialog-button" id="resetFocus" type="button">Reset</button><button class="dialog-button primary" id="toggleFocus" type="button">Start focus</button><button class="dialog-button" id="closeFocus" type="button">Close</button></div>
         </div>
     </dialog>

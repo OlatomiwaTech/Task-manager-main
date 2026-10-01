@@ -20,7 +20,9 @@ let undoSnapshot = null;
 let toastTimer;
 let focusTimer = null;
 let focusSeconds = 25 * 60;
+let focusTotalSeconds = 25 * 60;
 let focusTaskId = null;
+let draggingTaskId = null;
 
 function loadSession() {
     try {
@@ -70,7 +72,10 @@ function loadTasks(email) {
             category: categoryColors[task.category] ? task.category : 'Personal',
             priority: priorityColors[task.priority] ? task.priority : 'normal',
             dueDate: typeof task.dueDate === 'string' ? task.dueDate : '',
+            reminderAt: typeof task.reminderAt === 'string' ? task.reminderAt : '',
+            reminderSent: Boolean(task.reminderSent),
             recurrence: ['daily', 'weekly', 'monthly'].includes(task.recurrence) ? task.recurrence : 'none',
+            completedAt: typeof task.completedAt === 'string' ? task.completedAt : '',
             notes: typeof task.notes === 'string' ? task.notes.slice(0, 1000) : '',
             keywords: Array.isArray(task.keywords) ? [...new Set(task.keywords.map(keyword => String(keyword).trim().replace(/^#+/, '').toLocaleLowerCase()).filter(Boolean))].slice(0, 8) : [],
             subtasks: normalizeSubtasks(task.subtasks)
@@ -97,11 +102,13 @@ function saveAndRender() {
     render();
 }
 
-function addTask(event) {
+async function addTask(event) {
     event.preventDefault();
     const input = document.getElementById('taskInput');
     const text = input.value.trim();
     if (!text) return;
+    const reminderAt = document.getElementById('taskReminderAt').value;
+    if (reminderAt) await requestReminderPermission();
 
     tasks.unshift({
         id: Date.now(),
@@ -110,6 +117,8 @@ function addTask(event) {
         category: document.getElementById('taskCategory').value,
         priority: document.getElementById('taskPriority').value,
         dueDate: document.getElementById('taskDueDate').value,
+        reminderAt,
+        reminderSent: false,
         recurrence: document.getElementById('taskRecurrence').value,
         notes: document.getElementById('taskNotes').value.trim().slice(0, 1000),
         keywords: parseKeywords(document.getElementById('taskKeywords').value),
@@ -117,9 +126,13 @@ function addTask(event) {
     });
     input.value = '';
     document.getElementById('taskDueDate').value = '';
+    document.getElementById('taskReminderAt').value = '';
     document.getElementById('taskNotes').value = '';
     document.getElementById('taskSubtasks').value = '';
     document.getElementById('taskKeywords').value = '';
+    document.getElementById('reminderStatus').textContent = reminderAt && (!('Notification' in window) || Notification.permission !== 'granted')
+        ? 'Task saved; enable browser notifications to receive reminders.'
+        : reminderAt ? 'Reminder saved. Keep Daymark open to receive it.' : '';
     currentView = 'all';
     currentFilter = 'all';
     render();
@@ -127,9 +140,143 @@ function addTask(event) {
     localStorage.setItem(taskStorageKey(currentUser.email), JSON.stringify(tasks));
 }
 
+function formatDateInput(date) {
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+}
+
+function parseNaturalTask(value, referenceDate = new Date()) {
+    let text = value.trim();
+    let dueDate = '';
+    let category = '';
+    let priority = '';
+    let recurrence = '';
+    const keywords = [];
+    const baseDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+    const datePatterns = [
+        { pattern: /\bin\s+(\d{1,3})\s+days?\b/i, resolve: match => Number(match[1]) },
+        { pattern: /\btomorrow\b/i, resolve: () => 1 },
+        { pattern: /\bnext\s+week\b/i, resolve: () => 7 },
+        { pattern: /\btoday\b/i, resolve: () => 0 }
+    ];
+
+    for (const datePattern of datePatterns) {
+        const match = text.match(datePattern.pattern);
+        if (!match) continue;
+        baseDate.setDate(baseDate.getDate() + datePattern.resolve(match));
+        dueDate = formatDateInput(baseDate);
+        text = text.replace(match[0], ' ');
+        break;
+    }
+
+    if (!dueDate) {
+        const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const match = text.match(/\b(?:next\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i);
+        if (match) {
+            let daysAhead = (weekdays.indexOf(match[1].toLowerCase()) - baseDate.getDay() + 7) % 7 || 7;
+            if (/^next\s/i.test(match[0])) daysAhead += 7;
+            baseDate.setDate(baseDate.getDate() + daysAhead);
+            dueDate = formatDateInput(baseDate);
+            text = text.replace(match[0], ' ');
+        }
+    }
+
+    const areaMatch = text.match(/(?:^|\s)@(personal|work|learning|health)\b/i);
+    if (areaMatch) {
+        category = areaMatch[1][0].toUpperCase() + areaMatch[1].slice(1).toLowerCase();
+        text = text.replace(areaMatch[0], ' ');
+    }
+
+    text = text.replace(/#([a-z0-9][a-z0-9_-]*)/gi, (_, keyword) => {
+        const normalized = keyword.toLowerCase();
+        const knownCategory = Object.keys(categoryColors).find(name => name.toLowerCase() === normalized);
+        if (knownCategory) category = knownCategory;
+        else keywords.push(normalized);
+        return ' ';
+    });
+
+    const priorityMatch = text.match(/\b(high|normal|low)\s+priority\b|\bpriority\s+(high|normal|low)\b/i);
+    if (priorityMatch) {
+        priority = (priorityMatch[1] || priorityMatch[2]).toLowerCase();
+        text = text.replace(priorityMatch[0], ' ');
+    }
+
+    const repeatMatch = text.match(/\b(?:repeat\s+(daily|weekly|monthly)|every\s+(day|week|month)|(daily|weekly|monthly))\b/i);
+    if (repeatMatch) {
+        const repeatPhrase = (repeatMatch[1] || repeatMatch[2] || repeatMatch[3]).toLowerCase();
+        recurrence = repeatPhrase.startsWith('day') ? 'daily' : repeatPhrase.startsWith('week') ? 'weekly' : 'monthly';
+        text = text.replace(repeatMatch[0], ' ');
+    }
+
+    return {
+        text: text.replace(/\s+/g, ' ').replace(/\s+([,.;!?])/g, '$1').trim(),
+        dueDate,
+        category,
+        priority,
+        recurrence,
+        keywords: [...new Set(keywords)].slice(0, 8)
+    };
+}
+
+function parseQuickCapture() {
+    const input = document.getElementById('taskInput');
+    const status = document.getElementById('quickParseStatus');
+    const parsed = parseNaturalTask(input.value);
+    if (!parsed.text) {
+        status.textContent = 'Add a task description to parse.';
+        input.focus();
+        return;
+    }
+
+    input.value = parsed.text;
+    if (parsed.dueDate) document.getElementById('taskDueDate').value = parsed.dueDate;
+    if (parsed.category) document.getElementById('taskCategory').value = parsed.category;
+    if (parsed.priority) document.getElementById('taskPriority').value = parsed.priority;
+    if (parsed.recurrence) document.getElementById('taskRecurrence').value = parsed.recurrence;
+    if (parsed.keywords.length) {
+        document.getElementById('taskKeywords').value = parseKeywords(`${document.getElementById('taskKeywords').value}, ${parsed.keywords.join(', ')}`).join(', ');
+    }
+
+    const details = [parsed.dueDate && 'date', parsed.priority && `${parsed.priority} priority`, parsed.category, parsed.recurrence && `repeats ${parsed.recurrence}`, parsed.keywords.length && `${parsed.keywords.length} keyword${parsed.keywords.length === 1 ? '' : 's'}`].filter(Boolean);
+    status.textContent = details.length ? `Parsed: ${details.join(' · ')}.` : 'No date, priority, repeat, area, or #keyword found.';
+    input.focus();
+}
+
 function parseKeywords(value) {
     return [...new Set(value.split(',').map(keyword => keyword.trim().replace(/^#+/, '').toLocaleLowerCase()).filter(Boolean))].slice(0, 8);
 }
+
+async function requestReminderPermission() {
+    if (!('Notification' in window)) return false;
+    if (Notification.permission === 'granted') return true;
+    if (Notification.permission === 'denied') return false;
+    try {
+        return await Notification.requestPermission() === 'granted';
+    } catch {
+        return false;
+    }
+}
+
+function checkDueReminders() {
+    if (!currentUser || !('Notification' in window) || Notification.permission !== 'granted') return;
+    const now = Date.now();
+    let changed = false;
+    tasks.forEach(task => {
+        const reminderTime = task.reminderAt ? new Date(task.reminderAt).getTime() : NaN;
+        if (task.completed || task.reminderSent || !Number.isFinite(reminderTime) || reminderTime > now) return;
+        try {
+            const notification = new Notification(task.text, {
+                body: task.notes || `Reminder for your ${task.category.toLowerCase()} task.`,
+                tag: `daymark-${task.id}`
+            });
+            notification.onclick = () => { window.focus(); notification.close(); };
+            task.reminderSent = true;
+            changed = true;
+        } catch {}
+    });
+    if (changed) saveAndRender();
+}
+
+setInterval(checkDueReminders, 30_000);
 
 function normalizeSubtasks(items) {
     if (!Array.isArray(items)) return [];
@@ -229,6 +376,7 @@ function editTask(id) {
     document.getElementById('editTaskPriority').value = task.priority;
     document.getElementById('editTaskRecurrence').value = task.recurrence;
     document.getElementById('editTaskDueDate').value = task.dueDate;
+    document.getElementById('editTaskReminderAt').value = task.reminderAt;
     document.getElementById('editTaskNotes').value = task.notes;
     document.getElementById('editTaskKeywords').value = task.keywords.join(', ');
     document.getElementById('editTaskSubtasks').value = task.subtasks.map(subtask => subtask.text).join('\n');
@@ -255,11 +403,11 @@ function toggleTask(id) {
     let nextTask = null;
     tasks = tasks.map(task => {
         if (task.id !== id) return task;
-        if (task.completed) return { ...task, completed: false };
+        if (task.completed) return { ...task, completed: false, completedAt: '' };
         if (task.recurrence !== 'none') {
-            nextTask = { ...task, id: crypto.randomUUID(), completed: false, dueDate: nextOccurrence(task) };
+            nextTask = { ...task, id: crypto.randomUUID(), completed: false, completedAt: '', dueDate: nextOccurrence(task), reminderAt: '', reminderSent: false };
         }
-        return { ...task, completed: true };
+        return { ...task, completed: true, completedAt: new Date().toISOString() };
     });
     if (nextTask) tasks.unshift(nextTask);
     saveAndRender();
@@ -305,6 +453,13 @@ function getVisibleTasks() {
 function renderTask(task) {
     const item = document.createElement('li');
     item.className = `task-item${task.completed ? ' completed' : ''}`;
+    item.dataset.taskId = String(task.id);
+    item.draggable = document.getElementById('sortTasks').value === 'manual';
+
+    const dragHandle = document.createElement('span');
+    dragHandle.className = 'drag-handle';
+    dragHandle.setAttribute('aria-hidden', 'true');
+    dragHandle.textContent = '⠿';
 
     const complete = document.createElement('button');
     complete.className = 'complete-button';
@@ -318,11 +473,12 @@ function renderTask(task) {
     const name = document.createElement('div');
     name.className = 'task-name';
     name.textContent = task.text;
+    content.append(name);
     if (task.notes) {
         const note = document.createElement('div');
         note.className = 'task-note';
         note.textContent = task.notes;
-        content.append(name, note);
+        content.append(note);
     }
     const meta = document.createElement('div');
     meta.className = 'task-meta';
@@ -343,6 +499,12 @@ function renderTask(task) {
         repeat.className = 'recurrence-label';
         repeat.innerHTML = `↻ ${task.recurrence[0].toUpperCase()}${task.recurrence.slice(1)}`;
         meta.append(repeat);
+    }
+    if (task.reminderAt && !task.reminderSent && !task.completed) {
+        const reminder = document.createElement('span');
+        reminder.className = 'recurrence-label';
+        reminder.textContent = `Reminder ${new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(task.reminderAt))}`;
+        meta.append(reminder);
     }
     content.append(meta);
     if (task.keywords.length) {
@@ -409,7 +571,7 @@ function renderTask(task) {
         showUndo('Task deleted', previousTasks);
     });
     actions.append(focus, edit, remove);
-    item.append(complete, content, actions);
+    item.append(dragHandle, complete, content, actions);
     return item;
 }
 
@@ -431,6 +593,26 @@ function render() {
     document.getElementById('openStat').textContent = openTasks.length;
     document.getElementById('dueStat').textContent = dueToday.length;
     document.getElementById('doneStat').textContent = completedCount;
+    const weeklyCounts = getWeeklyCompletions(tasks);
+    const weeklyMaximum = Math.max(1, ...weeklyCounts.map(day => day.count));
+    document.getElementById('weeklyTotal').textContent = `${weeklyCounts.reduce((sum, day) => sum + day.count, 0)} completed`;
+    const weekChart = document.getElementById('weekChart');
+    weekChart.replaceChildren();
+    weeklyCounts.forEach(day => {
+        const column = document.createElement('div');
+        column.className = `week-day${day.isToday ? ' today' : ''}`;
+        column.setAttribute('aria-label', `${day.label}: ${day.count} completed`);
+        const track = document.createElement('div');
+        track.className = 'week-bar-track';
+        const bar = document.createElement('div');
+        bar.className = 'week-bar';
+        bar.style.setProperty('--bar-height', `${day.count ? Math.max(8, Math.round(day.count / weeklyMaximum * 100)) : 2}%`);
+        track.append(bar);
+        const label = document.createElement('span');
+        label.textContent = day.label;
+        column.append(track, label);
+        weekChart.append(column);
+    });
     document.getElementById('progressPercent').textContent = `${progress}%`;
     document.getElementById('progressRing').style.setProperty('--progress', `${progress}%`);
     document.getElementById('progressTitle').textContent = progressTotal && progress === 100 ? 'Nicely done' : progressTotal ? 'Keep your pace' : 'A fresh start';
@@ -487,6 +669,26 @@ function render() {
     }
 }
 
+function getWeeklyCompletions(taskList, referenceDate = new Date()) {
+    const todayDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+    return Array.from({ length: 7 }, (_, index) => {
+        const date = new Date(todayDate);
+        date.setDate(todayDate.getDate() - (6 - index));
+        const nextDate = new Date(date);
+        nextDate.setDate(date.getDate() + 1);
+        const count = taskList.filter(task => {
+            if (!task.completed || !task.completedAt) return false;
+            const completedAt = new Date(task.completedAt);
+            return Number.isFinite(completedAt.getTime()) && completedAt >= date && completedAt < nextDate;
+        }).length;
+        return {
+            label: new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(date),
+            count,
+            isToday: date.getTime() === todayDate.getTime()
+        };
+    });
+}
+
 function showWorkspace(user) {
     currentUser = user;
     tasks = loadTasks(user.email);
@@ -496,6 +698,7 @@ function showWorkspace(user) {
     document.getElementById('profileAvatar').textContent = user.displayName.trim().charAt(0).toUpperCase();
     document.getElementById('profileAvatar').setAttribute('aria-label', `${user.displayName} profile`);
     render();
+    checkDueReminders();
 }
 
 function setAuthMode(mode) {
@@ -603,6 +806,7 @@ document.getElementById('signOut').addEventListener('click', () => {
 
 document.getElementById('taskForm').addEventListener('submit', addTask);
 document.getElementById('aiPlanButton').addEventListener('click', generateTaskPlan);
+document.getElementById('parseNaturalTask').addEventListener('click', parseQuickCapture);
 document.getElementById('searchInput').addEventListener('input', render);
 document.getElementById('clearCompleted').addEventListener('click', () => {
     const previousTasks = [...tasks];
@@ -621,15 +825,53 @@ document.getElementById('undoAction').addEventListener('click', () => {
     saveAndRender();
 });
 document.getElementById('sortTasks').addEventListener('change', render);
-document.getElementById('cancelEdit').addEventListener('click', () => document.getElementById('editDialog').close());
-document.getElementById('editForm').addEventListener('submit', event => {
+document.getElementById('taskList').addEventListener('dragstart', event => {
+    const item = event.target instanceof Element ? event.target.closest('.task-item') : null;
+    if (!item?.draggable) return;
+    draggingTaskId = item.dataset.taskId;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', draggingTaskId);
+    item.classList.add('dragging');
+});
+document.getElementById('taskList').addEventListener('dragover', event => {
+    if (document.getElementById('sortTasks').value === 'manual' && event.target instanceof Element && event.target.closest('.task-item')) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+    }
+});
+document.getElementById('taskList').addEventListener('drop', event => {
+    const target = event.target instanceof Element ? event.target.closest('.task-item') : null;
+    const sourceId = event.dataTransfer.getData('text/plain') || draggingTaskId;
+    if (!target || !sourceId || sourceId === target.dataset.taskId || document.getElementById('sortTasks').value !== 'manual') return;
     event.preventDefault();
+    const sourceIndex = tasks.findIndex(task => String(task.id) === sourceId);
+    if (sourceIndex < 0) return;
+    const [movedTask] = tasks.splice(sourceIndex, 1);
+    const targetIndex = tasks.findIndex(task => String(task.id) === target.dataset.taskId);
+    if (targetIndex < 0) {
+        tasks.splice(sourceIndex, 0, movedTask);
+        return;
+    }
+    tasks.splice(targetIndex, 0, movedTask);
+    saveAndRender();
+});
+document.getElementById('taskList').addEventListener('dragend', event => {
+    if (event.target instanceof Element) event.target.closest('.task-item')?.classList.remove('dragging');
+    draggingTaskId = null;
+});
+document.getElementById('cancelEdit').addEventListener('click', () => document.getElementById('editDialog').close());
+document.getElementById('editForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const reminderAt = document.getElementById('editTaskReminderAt').value;
+    if (reminderAt) await requestReminderPermission();
     tasks = tasks.map(task => task.id === editingTaskId ? {
         ...task,
         text: document.getElementById('editTaskName').value.trim(),
         category: document.getElementById('editTaskCategory').value,
         priority: document.getElementById('editTaskPriority').value,
         dueDate: document.getElementById('editTaskDueDate').value,
+        reminderAt,
+        reminderSent: reminderAt === task.reminderAt ? task.reminderSent : false,
         recurrence: document.getElementById('editTaskRecurrence').value,
         notes: document.getElementById('editTaskNotes').value.trim().slice(0, 1000),
         keywords: parseKeywords(document.getElementById('editTaskKeywords').value),
@@ -749,7 +991,10 @@ async function importTasksFromFile(event) {
             category: categoryColors[task.category] ? task.category : 'Personal',
             priority: priorityColors[task.priority] ? task.priority : 'normal',
             dueDate: typeof task.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(task.dueDate) ? task.dueDate : '',
+            reminderAt: typeof task.reminderAt === 'string' ? task.reminderAt : '',
+            reminderSent: Boolean(task.reminderSent),
             recurrence: ['daily', 'weekly', 'monthly'].includes(task.recurrence) ? task.recurrence : 'none',
+            completedAt: typeof task.completedAt === 'string' ? task.completedAt : '',
             notes: typeof task.notes === 'string' ? task.notes.trim().slice(0, 1000) : '',
             keywords: Array.isArray(task.keywords) ? parseKeywords(task.keywords.join(',')) : parseKeywords(typeof task.keywords === 'string' ? task.keywords : ''),
             subtasks: normalizeSubtasks(task.subtasks)
