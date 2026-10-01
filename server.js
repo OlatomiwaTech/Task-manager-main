@@ -51,8 +51,12 @@ async function planTask(request, response) {
         return;
     }
 
-    const title = typeof payload.title === 'string' ? payload.title.trim().slice(0, 160) : '';
-    const notes = typeof payload.notes === 'string' ? payload.notes.trim().slice(0, 1000) : '';
+    const title = payload && typeof payload === 'object' && !Array.isArray(payload) && typeof payload.title === 'string'
+        ? payload.title.trim().slice(0, 160)
+        : '';
+    const notes = payload && typeof payload === 'object' && !Array.isArray(payload) && typeof payload.notes === 'string'
+        ? payload.notes.trim().slice(0, 1000)
+        : '';
     if (!title) {
         sendJson(response, 400, { error: 'Add a task title before asking AI to plan it.' });
         return;
@@ -89,8 +93,8 @@ async function planTask(request, response) {
         const content = result.choices?.[0]?.message?.content;
         if (typeof content !== 'string') throw new Error('AI returned an empty plan.');
         const plan = JSON.parse(content);
-        const subtasks = Array.isArray(plan.subtasks) ? plan.subtasks.map(value => String(value).trim().slice(0, 160)).filter(Boolean).slice(0, 8) : [];
-        const keywords = Array.isArray(plan.keywords) ? [...new Set(plan.keywords.map(value => String(value).trim().replace(/^#+/, '').toLowerCase()).filter(Boolean))].slice(0, 8) : [];
+        const subtasks = Array.isArray(plan.subtasks) ? plan.subtasks.filter(value => typeof value === 'string').map(value => value.trim().slice(0, 160)).filter(Boolean).slice(0, 8) : [];
+        const keywords = Array.isArray(plan.keywords) ? [...new Set(plan.keywords.filter(value => typeof value === 'string').map(value => value.trim().replace(/^#+/, '').toLowerCase()).filter(Boolean))].slice(0, 8) : [];
         const suggestedNotes = typeof plan.notes === 'string' ? plan.notes.trim().slice(0, 1000) : '';
         if (!subtasks.length) throw new Error('AI returned no checklist steps.');
         sendJson(response, 200, { subtasks, keywords, notes: suggestedNotes });
