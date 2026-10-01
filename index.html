@@ -231,6 +231,7 @@
         .field-control { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: #fffefa; color: #657068; font-size: 11px; }
         .field-control:focus { border-color: #9aae9c; outline: none; }
         .repeat-control { max-width: 145px; }
+        .keyword-input { min-width: 160px; flex: 1 1 180px; }
         .add-button { display: inline-flex; min-height: 36px; align-items: center; gap: 8px; margin-left: auto; padding: 0 15px; border: 0; border-radius: 5px; background: var(--green); color: white; cursor: pointer; font-size: 12px; font-weight: 650; transition: background .18s ease, transform .18s ease; }
         .add-button:hover { transform: translateY(-1px); background: var(--green-dark); }
 
@@ -258,6 +259,8 @@
         .task-name { overflow-wrap: anywhere; font-size: 13px; font-weight: 550; line-height: 1.45; }
         .task-item.completed .task-name { color: #9aa29b; text-decoration: line-through; text-decoration-color: #afb6ad; }
         .task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 5px; color: #8c958c; font-size: 10px; }
+        .task-keywords { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+        .keyword-chip { padding: 3px 7px; border: 1px solid #e3e9df; border-radius: 10px; background: #f4f7f1; color: #617562; font-size: 9px; }
         .task-category { display: inline-flex; align-items: center; gap: 5px; }
         .task-category .category-dot { width: 6px; height: 6px; }
         .due-date.overdue { color: var(--coral); }
@@ -291,6 +294,10 @@
         .shortcut-list { display: grid; gap: 11px; margin: 18px 0 0; padding: 0; list-style: none; }
         .shortcut-list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: #657068; font-size: 12px; }
         .shortcut-list kbd { min-width: 30px; padding: 5px 7px; border: 1px solid #dfe5dc; border-radius: 4px; background: #f7f8f3; color: var(--green-dark); font-family: inherit; font-size: 11px; font-weight: 700; text-align: center; }
+        .focus-clock { display: grid; width: 190px; aspect-ratio: 1; place-items: center; margin: 20px auto; border: 1px solid #e0e8dc; border-radius: 50%; background: radial-gradient(circle, #fffefa 60%, #eaf0e6 61%, #eaf0e6 69%, #fffefa 70%); color: var(--green-dark); font-family: Georgia, serif; font-size: 54px; font-variant-numeric: tabular-nums; }
+        .focus-task-label { min-height: 18px; margin: 0; color: var(--muted); font-size: 12px; text-align: center; }
+        .focus-status { min-height: 18px; margin: 8px 0 0; color: var(--green); font-size: 11px; text-align: center; }
+        .focus-controls { display: flex; justify-content: center; gap: 9px; margin-top: 16px; }
 
         @media (max-width: 760px) {
             .app-shell { grid-template-columns: minmax(0, 1fr); }
@@ -386,6 +393,8 @@
             <nav aria-label="Task views">
                 <ul class="nav-list">
                     <li><button class="nav-button active" data-view="today"><span class="nav-icon" aria-hidden="true">◷</span> My day <span class="nav-count" id="todayCount">0</span></button></li>
+                    <li><button class="nav-button" data-view="overdue"><span class="nav-icon" aria-hidden="true">!</span> Overdue <span class="nav-count" id="overdueCount">0</span></button></li>
+                    <li><button class="nav-button" data-view="upcoming"><span class="nav-icon" aria-hidden="true">↗</span> Upcoming <span class="nav-count" id="upcomingCount">0</span></button></li>
                     <li><button class="nav-button" data-view="all"><span class="nav-icon" aria-hidden="true">▤</span> All tasks <span class="nav-count" id="allCount">0</span></button></li>
                     <li><button class="nav-button" data-view="completed"><span class="nav-icon" aria-hidden="true">✓</span> Completed</button></li>
                 </ul>
@@ -404,7 +413,7 @@
             <div class="main-inner">
                 <header class="topbar">
                     <span class="date-label" id="dateLabel"></span>
-                    <div class="topbar-right"><span class="date-label" id="profileLabel">Your personal workspace</span><button class="icon-button" id="showShortcuts" type="button" aria-label="Show keyboard shortcuts" title="Keyboard shortcuts (?)"><span aria-hidden="true">?</span></button><button class="icon-button" id="exportTasks" type="button" aria-label="Export tasks" title="Export tasks as JSON"><span aria-hidden="true">↧</span></button><div class="avatar" id="profileAvatar" aria-label="Daymark profile">D</div><button class="signout-button" id="signOut" type="button">Log out</button></div>
+                    <div class="topbar-right"><span class="date-label" id="profileLabel">Your personal workspace</span><button class="icon-button" id="showFocus" type="button" aria-label="Start a focus session" title="Focus session"><span aria-hidden="true">◷</span></button><button class="icon-button" id="showShortcuts" type="button" aria-label="Show keyboard shortcuts" title="Keyboard shortcuts (?)"><span aria-hidden="true">?</span></button><button class="icon-button" id="exportTasks" type="button" aria-label="Export tasks" title="Export tasks as JSON"><span aria-hidden="true">↧</span></button><div class="avatar" id="profileAvatar" aria-label="Daymark profile">D</div><button class="signout-button" id="signOut" type="button">Log out</button></div>
                 </header>
                 <section aria-labelledby="pageTitle">
                     <div class="heading-row">
@@ -425,6 +434,7 @@
                         <select class="field-control" id="taskPriority" aria-label="Task priority"><option value="normal">Normal priority</option><option value="high">High priority</option><option value="low">Low priority</option></select>
                         <select class="field-control repeat-control" id="taskRecurrence" aria-label="Repeat task"><option value="none">Does not repeat</option><option value="daily">Repeat daily</option><option value="weekly">Repeat weekly</option><option value="monthly">Repeat monthly</option></select>
                         <input class="field-control" id="taskDueDate" type="date" aria-label="Due date">
+                        <input class="field-control keyword-input" id="taskKeywords" type="text" maxlength="160" placeholder="Keywords, comma-separated" aria-label="Task keywords">
                         <button class="add-button" type="submit"><span aria-hidden="true">＋</span> Add task</button>
                     </div>
                 </form>
@@ -457,6 +467,7 @@
             <label class="dialog-field">Priority<select id="editTaskPriority"><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></label>
             <label class="dialog-field">Repeat<select id="editTaskRecurrence"><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
             <label class="dialog-field">Due date<input id="editTaskDueDate" type="date"></label>
+            <label class="dialog-field">Keywords<input id="editTaskKeywords" maxlength="160" placeholder="Comma-separated keywords"></label>
             <div class="dialog-actions"><button class="dialog-button" id="cancelEdit" type="button">Cancel</button><button class="dialog-button primary" type="submit">Save changes</button></div>
         </form>
     </dialog>
@@ -466,6 +477,16 @@
             <p class="dialog-caption">Keep your hands on the work.</p>
             <ul class="shortcut-list"><li><span>Quick add a task</span><kbd>N</kbd></li><li><span>Search tasks</span><kbd>/</kbd></li><li><span>Show this guide</span><kbd>?</kbd></li><li><span>Close a dialog</span><kbd>Esc</kbd></li></ul>
             <div class="dialog-actions"><button class="dialog-button primary" id="closeShortcuts" type="button">Done</button></div>
+        </div>
+    </dialog>
+    <dialog class="edit-dialog" id="focusDialog" aria-labelledby="focusTitle">
+        <div class="dialog-content">
+            <h2 class="dialog-heading" id="focusTitle">Focus session</h2>
+            <p class="dialog-caption">One task. Twenty-five quiet minutes.</p>
+            <p class="focus-task-label" id="focusTaskLabel">A little focused time goes a long way.</p>
+            <div class="focus-clock" id="focusClock" role="timer" aria-live="off">25:00</div>
+            <p class="focus-status" id="focusStatus">Ready when you are.</p>
+            <div class="focus-controls"><button class="dialog-button" id="resetFocus" type="button">Reset</button><button class="dialog-button primary" id="toggleFocus" type="button">Start focus</button><button class="dialog-button" id="closeFocus" type="button">Close</button></div>
         </div>
     </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastMessage"></span><button id="undoAction" type="button">Undo</button></div>

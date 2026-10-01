@@ -51,7 +51,8 @@ function loadTasks(email) {
             category: categoryColors[task.category] ? task.category : 'Personal',
             priority: priorityColors[task.priority] ? task.priority : 'normal',
             dueDate: typeof task.dueDate === 'string' ? task.dueDate : '',
-            recurrence: ['daily', 'weekly', 'monthly'].includes(task.recurrence) ? task.recurrence : 'none'
+            recurrence: ['daily', 'weekly', 'monthly'].includes(task.recurrence) ? task.recurrence : 'none',
+            keywords: Array.isArray(task.keywords) ? [...new Set(task.keywords.map(keyword => String(keyword).trim().replace(/^#+/, '').toLocaleLowerCase()).filter(Boolean))].slice(0, 8) : []
         })).filter(task => task.text);
     } catch {
         return [];
@@ -88,15 +89,21 @@ function addTask(event) {
         category: document.getElementById('taskCategory').value,
         priority: document.getElementById('taskPriority').value,
         dueDate: document.getElementById('taskDueDate').value,
-        recurrence: document.getElementById('taskRecurrence').value
+        recurrence: document.getElementById('taskRecurrence').value,
+        keywords: parseKeywords(document.getElementById('taskKeywords').value)
     });
     input.value = '';
     document.getElementById('taskDueDate').value = '';
+    document.getElementById('taskKeywords').value = '';
     currentView = 'all';
     currentFilter = 'all';
     render();
     input.focus();
     localStorage.setItem(taskStorageKey(currentUser.email), JSON.stringify(tasks));
+}
+
+function parseKeywords(value) {
+    return [...new Set(value.split(',').map(keyword => keyword.trim().replace(/^#+/, '').toLocaleLowerCase()).filter(Boolean))].slice(0, 8);
 }
 
 function showUndo(message, previousTasks) {
@@ -119,6 +126,7 @@ function editTask(id) {
     document.getElementById('editTaskPriority').value = task.priority;
     document.getElementById('editTaskRecurrence').value = task.recurrence;
     document.getElementById('editTaskDueDate').value = task.dueDate;
+    document.getElementById('editTaskKeywords').value = task.keywords.join(', ');
     document.getElementById('editDialog').showModal();
     document.getElementById('editTaskName').focus();
 }
@@ -162,12 +170,14 @@ function getVisibleTasks() {
     const visibleTasks = tasks.filter(task => {
         const matchesView = currentView === 'all' ||
             (currentView === 'completed' && task.completed) ||
+            (currentView === 'overdue' && !task.completed && task.dueDate && task.dueDate < todayKey) ||
+            (currentView === 'upcoming' && !task.completed && task.dueDate > todayKey) ||
             (currentView === 'today' && !task.completed && (!task.dueDate || task.dueDate <= todayKey)) ||
             (currentView.startsWith('category:') && task.category === currentView.slice(9));
         const matchesFilter = currentFilter === 'all' ||
             (currentFilter === 'active' && !task.completed) ||
             (currentFilter === 'completed' && task.completed);
-        return matchesView && matchesFilter && `${task.text} ${task.category} ${task.priority}`.toLocaleLowerCase().includes(query);
+        return matchesView && matchesFilter && `${task.text} ${task.category} ${task.priority} ${task.keywords.join(' ')}`.toLocaleLowerCase().includes(query);
     });
     const sortBy = document.getElementById('sortTasks').value;
     if (sortBy === 'due') return visibleTasks.sort((first, second) => (first.dueDate || '9999-12-31').localeCompare(second.dueDate || '9999-12-31'));
@@ -215,9 +225,27 @@ function renderTask(task) {
         meta.append(repeat);
     }
     content.append(name, meta);
+    if (task.keywords.length) {
+        const keywordList = document.createElement('div');
+        keywordList.className = 'task-keywords';
+        task.keywords.forEach(keyword => {
+            const chip = document.createElement('span');
+            chip.className = 'keyword-chip';
+            chip.textContent = `#${keyword}`;
+            keywordList.append(chip);
+        });
+        content.append(keywordList);
+    }
 
     const actions = document.createElement('div');
     actions.className = 'task-actions';
+    const focus = document.createElement('button');
+    focus.className = 'task-action focus';
+    focus.type = 'button';
+    focus.setAttribute('aria-label', `Start focus session for ${task.text}`);
+    focus.title = 'Focus on this task';
+    focus.textContent = '▶';
+    focus.addEventListener('click', () => openFocusSession(task));
     const edit = document.createElement('button');
     edit.className = 'task-action';
     edit.type = 'button';
@@ -236,7 +264,7 @@ function renderTask(task) {
         deleteTask(task.id);
         showUndo('Task deleted', previousTasks);
     });
-    actions.append(edit, remove);
+    actions.append(focus, edit, remove);
     item.append(complete, content, actions);
     return item;
 }
@@ -246,11 +274,15 @@ function render() {
     const dueToday = openTasks.filter(task => task.dueDate === todayKey);
     const completedCount = tasks.filter(task => task.completed).length;
     const todayTasks = openTasks.filter(task => !task.dueDate || task.dueDate <= todayKey);
+    const overdueTasks = openTasks.filter(task => task.dueDate && task.dueDate < todayKey);
+    const upcomingTasks = openTasks.filter(task => task.dueDate && task.dueDate > todayKey);
     const todayCompleted = tasks.filter(task => task.completed && task.dueDate === todayKey).length;
     const progressTotal = todayTasks.length + todayCompleted;
     const progress = progressTotal ? Math.round((todayCompleted / progressTotal) * 100) : 0;
 
     document.getElementById('todayCount').textContent = todayTasks.length;
+    document.getElementById('overdueCount').textContent = overdueTasks.length;
+    document.getElementById('upcomingCount').textContent = upcomingTasks.length;
     document.getElementById('allCount').textContent = openTasks.length;
     document.getElementById('openStat').textContent = openTasks.length;
     document.getElementById('dueStat').textContent = dueToday.length;
@@ -266,7 +298,7 @@ function render() {
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
     document.getElementById('pageTitle').textContent = `${greeting}, ${firstName}.`;
     document.getElementById('dateLabel').textContent = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).format(now);
-    const titles = { today: "Today's focus", all: 'All tasks', completed: 'Completed tasks' };
+    const titles = { today: "Today's focus", overdue: 'Overdue tasks', upcoming: 'Coming up', all: 'All tasks', completed: 'Completed tasks' };
     document.getElementById('listTitle').textContent = currentView.startsWith('category:') ? currentView.slice(9) : titles[currentView];
     document.getElementById('pageSubtitle').textContent = currentView === 'today' ? 'A clear list makes room for good work.' : 'Everything you need, gathered in one place.';
 
@@ -449,7 +481,8 @@ document.getElementById('editForm').addEventListener('submit', event => {
         category: document.getElementById('editTaskCategory').value,
         priority: document.getElementById('editTaskPriority').value,
         dueDate: document.getElementById('editTaskDueDate').value,
-        recurrence: document.getElementById('editTaskRecurrence').value
+        recurrence: document.getElementById('editTaskRecurrence').value,
+        keywords: parseKeywords(document.getElementById('editTaskKeywords').value)
     } : task);
     document.getElementById('editDialog').close();
     saveAndRender();
@@ -462,6 +495,55 @@ document.getElementById('exportTasks').addEventListener('click', () => {
     link.click();
     URL.revokeObjectURL(link.href);
 });
+
+function renderFocusClock() {
+    const minutes = Math.floor(focusSeconds / 60).toString().padStart(2, '0');
+    const seconds = (focusSeconds % 60).toString().padStart(2, '0');
+    document.getElementById('focusClock').textContent = `${minutes}:${seconds}`;
+}
+
+function openFocusSession(task = null) {
+    focusTaskId = task ? task.id : null;
+    document.getElementById('focusTaskLabel').textContent = task ? task.text : 'A little focused time goes a long way.';
+    document.getElementById('focusStatus').textContent = 'Ready when you are.';
+    focusSeconds = 25 * 60;
+    renderFocusClock();
+    document.getElementById('toggleFocus').textContent = 'Start focus';
+    document.getElementById('focusDialog').showModal();
+}
+
+function stopFocusSession() {
+    clearInterval(focusTimer);
+    focusTimer = null;
+    document.getElementById('toggleFocus').textContent = 'Start focus';
+}
+
+document.getElementById('showFocus').addEventListener('click', () => openFocusSession());
+document.getElementById('toggleFocus').addEventListener('click', () => {
+    if (focusTimer) {
+        stopFocusSession();
+        document.getElementById('focusStatus').textContent = 'Session paused.';
+        return;
+    }
+    document.getElementById('focusStatus').textContent = focusTaskId ? 'Stay with this task. You are doing great.' : 'Stay with one thing at a time.';
+    document.getElementById('toggleFocus').textContent = 'Pause';
+    focusTimer = setInterval(() => {
+        focusSeconds = Math.max(0, focusSeconds - 1);
+        renderFocusClock();
+        if (focusSeconds === 0) {
+            stopFocusSession();
+            document.getElementById('focusStatus').textContent = 'Session complete. Take a short break.';
+        }
+    }, 1000);
+});
+document.getElementById('resetFocus').addEventListener('click', () => {
+    stopFocusSession();
+    focusSeconds = 25 * 60;
+    renderFocusClock();
+    document.getElementById('focusStatus').textContent = 'Ready when you are.';
+});
+document.getElementById('closeFocus').addEventListener('click', () => document.getElementById('focusDialog').close());
+document.getElementById('focusDialog').addEventListener('close', stopFocusSession);
 document.getElementById('showShortcuts').addEventListener('click', () => document.getElementById('shortcutsDialog').showModal());
 document.getElementById('closeShortcuts').addEventListener('click', () => document.getElementById('shortcutsDialog').close());
 document.addEventListener('keydown', event => {
