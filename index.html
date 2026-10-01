@@ -228,6 +228,7 @@
         .task-input::placeholder { color: #a3aaa2; }
         .task-input:focus { border-bottom-color: var(--green); outline: none; }
         .task-note-input { min-height: 42px; margin-top: 4px; resize: vertical; color: #68766b; font-size: 12px; }
+        .task-subtask-input { min-height: 50px; margin-top: 4px; resize: vertical; color: #68766b; font-size: 12px; }
         .composer-controls { display: flex; align-items: center; gap: 9px; padding-top: 13px; }
         .field-control { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: #fffefa; color: #657068; font-size: 11px; }
         .field-control:focus { border-color: #9aae9c; outline: none; }
@@ -266,6 +267,12 @@
         .task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 5px; color: #8c958c; font-size: 10px; }
         .task-keywords { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
         .keyword-chip { padding: 3px 7px; border: 1px solid #e3e9df; border-radius: 10px; background: #f4f7f1; color: #617562; font-size: 9px; }
+        .subtask-progress { margin-top: 10px; color: #77847a; font-size: 10px; }
+        .subtask-list { display: grid; gap: 5px; margin: 7px 0 0; padding: 0; list-style: none; }
+        .subtask-item { display: flex; align-items: flex-start; gap: 7px; color: #59665d; font-size: 11px; line-height: 1.4; }
+        .subtask-toggle { display: grid; width: 15px; height: 15px; flex: 0 0 auto; place-items: center; margin-top: 1px; padding: 0; border: 1px solid #cbd4ca; border-radius: 3px; background: transparent; color: white; cursor: pointer; font-size: 10px; }
+        .subtask-toggle[aria-pressed="true"] { border-color: var(--green); background: var(--green); }
+        .subtask-item.completed span { color: #9aa29b; text-decoration: line-through; }
         .task-category { display: inline-flex; align-items: center; gap: 5px; }
         .task-category .category-dot { width: 6px; height: 6px; }
         .due-date.overdue { color: var(--coral); }
@@ -438,6 +445,7 @@
                 <form class="composer" id="taskForm">
                     <div class="composer-top"><input class="task-input" id="taskInput" type="text" maxlength="160" placeholder="What needs your attention?" aria-label="Task name" autocomplete="off" required></div>
                     <textarea class="task-input task-note-input" id="taskNotes" rows="2" maxlength="1000" placeholder="Add a note or a little context (optional)" aria-label="Task notes"></textarea>
+                    <textarea class="task-input task-subtask-input" id="taskSubtasks" rows="2" maxlength="1000" placeholder="Checklist: one step per line (optional)" aria-label="Task checklist"></textarea>
                     <div class="composer-controls">
                         <select class="field-control" id="taskCategory" aria-label="Task category"><option>Personal</option><option>Work</option><option>Learning</option><option>Health</option></select>
                         <select class="field-control" id="taskPriority" aria-label="Task priority"><option value="normal">Normal priority</option><option value="high">High priority</option><option value="low">Low priority</option></select>
@@ -480,6 +488,7 @@
             <label class="dialog-field">Due date<input id="editTaskDueDate" type="date"></label>
             <label class="dialog-field">Keywords<input id="editTaskKeywords" maxlength="160" placeholder="Comma-separated keywords"></label>
             <label class="dialog-field">Notes<textarea id="editTaskNotes" maxlength="1000" rows="4" placeholder="Add useful context"></textarea></label>
+            <label class="dialog-field">Checklist<textarea id="editTaskSubtasks" maxlength="1000" rows="5" placeholder="One step per line"></textarea></label>
             <div class="dialog-actions"><button class="dialog-button" id="cancelEdit" type="button">Cancel</button><button class="dialog-button primary" type="submit">Save changes</button></div>
         </form>
     </dialog>
