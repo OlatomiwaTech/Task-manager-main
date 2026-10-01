@@ -22,6 +22,7 @@ let focusTimer = null;
 let focusSeconds = 25 * 60;
 let focusTotalSeconds = 25 * 60;
 let focusTaskId = null;
+let focusMode = 'focus';
 let draggingTaskId = null;
 
 function loadSession() {
@@ -72,7 +73,7 @@ function loadTasks(email) {
             category: categoryColors[task.category] ? task.category : 'Personal',
             priority: priorityColors[task.priority] ? task.priority : 'normal',
             dueDate: typeof task.dueDate === 'string' ? task.dueDate : '',
-            reminderAt: typeof task.reminderAt === 'string' ? task.reminderAt : '',
+            reminderAt: normalizeReminderDate(task.reminderAt),
             reminderSent: Boolean(task.reminderSent),
             recurrence: ['daily', 'weekly', 'monthly'].includes(task.recurrence) ? task.recurrence : 'none',
             completedAt: typeof task.completedAt === 'string' ? task.completedAt : '',
@@ -94,6 +95,11 @@ function formatDate(dateString) {
     const tomorrowKey = [tomorrow.getFullYear(), String(tomorrow.getMonth() + 1).padStart(2, '0'), String(tomorrow.getDate()).padStart(2, '0')].join('-');
     if (dateString === tomorrowKey) return 'Tomorrow';
     return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
+}
+
+function normalizeReminderDate(value) {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(value)) return '';
+    return Number.isFinite(new Date(value).getTime()) ? value : '';
 }
 
 function saveAndRender() {
@@ -991,7 +997,7 @@ async function importTasksFromFile(event) {
             category: categoryColors[task.category] ? task.category : 'Personal',
             priority: priorityColors[task.priority] ? task.priority : 'normal',
             dueDate: typeof task.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(task.dueDate) ? task.dueDate : '',
-            reminderAt: typeof task.reminderAt === 'string' ? task.reminderAt : '',
+            reminderAt: normalizeReminderDate(task.reminderAt),
             reminderSent: Boolean(task.reminderSent),
             recurrence: ['daily', 'weekly', 'monthly'].includes(task.recurrence) ? task.recurrence : 'none',
             completedAt: typeof task.completedAt === 'string' ? task.completedAt : '',
