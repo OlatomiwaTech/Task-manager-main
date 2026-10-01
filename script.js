@@ -70,6 +70,7 @@ function loadTasks(email) {
             id: task.id || Date.now() + index,
             text: String(task.text || ''),
             completed: Boolean(task.completed),
+            dependencyTaskId: typeof task.dependencyTaskId === 'string' ? task.dependencyTaskId : '',
             category: categoryColors[task.category] ? task.category : 'Personal',
             priority: priorityColors[task.priority] ? task.priority : 'normal',
             dueDate: typeof task.dueDate === 'string' ? task.dueDate : '',
@@ -120,6 +121,7 @@ async function addTask(event) {
         id: Date.now(),
         text,
         completed: false,
+        dependencyTaskId: document.getElementById('taskDependency').value || '',
         category: document.getElementById('taskCategory').value,
         priority: document.getElementById('taskPriority').value,
         dueDate: document.getElementById('taskDueDate').value,
@@ -301,6 +303,29 @@ function parseSubtasks(value, existing = []) {
     });
 }
 
+function dependencyWouldCycle(taskId, dependencyTaskId) {
+    const visited = new Set();
+    let currentId = dependencyTaskId;
+    while (currentId) {
+        if (currentId === taskId) return true;
+        if (visited.has(currentId)) return true;
+        visited.add(currentId);
+        currentId = tasks.find(task => String(task.id) === currentId)?.dependencyTaskId || '';
+    }
+    return false;
+}
+
+function populateDependencySelect(select, selectedId = '', currentTaskId = '') {
+    select.replaceChildren(new Option('No dependency', ''));
+    tasks.forEach(task => {
+        const taskId = String(task.id);
+        if (taskId === currentTaskId || dependencyWouldCycle(currentTaskId, taskId)) return;
+        const option = new Option(`${task.text}${task.completed ? ' (completed)' : ''}`, taskId);
+        if (taskId === selectedId) option.selected = true;
+        select.append(option);
+    });
+}
+
 async function generateTaskPlan() {
     const title = document.getElementById('taskInput').value.trim();
     const button = document.getElementById('aiPlanButton');
@@ -377,6 +402,7 @@ function editTask(id) {
     const task = tasks.find(item => item.id === id);
     if (!task) return;
     editingTaskId = id;
+    populateDependencySelect(document.getElementById('editTaskDependency'), task.dependencyTaskId || '', String(task.id));
     document.getElementById('editTaskName').value = task.text;
     document.getElementById('editTaskCategory').value = task.category;
     document.getElementById('editTaskPriority').value = task.priority;
@@ -406,6 +432,12 @@ function nextOccurrence(task) {
 }
 
 function toggleTask(id) {
+    const taskToComplete = tasks.find(task => task.id === id);
+    const prerequisite = taskToComplete?.dependencyTaskId ? tasks.find(task => String(task.id) === taskToComplete.dependencyTaskId) : null;
+    if (taskToComplete && !taskToComplete.completed && prerequisite && !prerequisite.completed) {
+        showUndo(`Complete “${prerequisite.text}” before this task.`, null);
+        return;
+    }
     let nextTask = null;
     tasks = tasks.map(task => {
         if (task.id !== id) return task;
@@ -500,6 +532,14 @@ function renderTask(task) {
     priority.className = 'priority';
     priority.innerHTML = `<span class="priority-mark" style="--priority-color: ${priorityColors[task.priority]}"></span>${task.priority[0].toUpperCase()}${task.priority.slice(1)} priority`;
     meta.append(category, due, priority);
+    const prerequisite = task.dependencyTaskId ? tasks.find(item => String(item.id) === task.dependencyTaskId) : null;
+    if (prerequisite) {
+        const dependency = document.createElement('span');
+        dependency.className = 'dependency-label';
+        dependency.textContent = prerequisite.completed ? `After ${prerequisite.text} ✓` : `Blocked by ${prerequisite.text}`;
+        meta.append(dependency);
+        if (!prerequisite.completed && !task.completed) complete.disabled = true;
+    }
     if (task.recurrence !== 'none') {
         const repeat = document.createElement('span');
         repeat.className = 'recurrence-label';

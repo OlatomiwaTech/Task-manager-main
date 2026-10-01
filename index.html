@@ -321,6 +321,7 @@
         .task-category { display: inline-flex; align-items: center; gap: 5px; }
         .task-category .category-dot { width: 6px; height: 6px; }
         .due-date.overdue { color: var(--coral); }
+        .dependency-label { color: #9b7740; }
         .recurrence-label { display: inline-flex; align-items: center; gap: 4px; color: #748778; }
         .priority { display: inline-flex; align-items: center; gap: 4px; }
         .priority-mark { width: 6px; height: 6px; border-radius: 50%; background: var(--priority-color); }
@@ -469,6 +470,7 @@
         [data-theme="dark"] .task-meta, [data-theme="dark"] .subtask-item { color: #b1beb3; }
         [data-theme="dark"] .keyword-chip { border-color: #405344; background: #29392d; color: #c6dbc8; }
         [data-theme="dark"] .recurrence-label { color: #b9cfbc; }
+        [data-theme="dark"] .dependency-label { color: #e0c182; }
         [data-theme="dark"] .task-action { color: #afbbb0; }
         [data-theme="dark"] .task-action:hover { background: #2b392e; color: #e2eee3; }
         [data-theme="dark"] .task-action.delete:hover { background: #432d28; color: #f0a18b; }
@@ -579,6 +581,7 @@
                     <textarea class="task-input task-subtask-input" id="taskSubtasks" rows="2" maxlength="1000" placeholder="Checklist: one step per line (optional)" aria-label="Task checklist"></textarea>
                     <div class="composer-controls">
                         <select class="field-control" id="taskCategory" aria-label="Task category"><option>Personal</option><option>Work</option><option>Learning</option><option>Health</option></select>
+                        <select class="field-control" id="taskDependency" aria-label="Depends on task"><option value="">No dependency</option></select>
                         <select class="field-control" id="taskPriority" aria-label="Task priority"><option value="normal">Normal priority</option><option value="high">High priority</option><option value="low">Low priority</option></select>
                         <select class="field-control repeat-control" id="taskRecurrence" aria-label="Repeat task"><option value="none">Does not repeat</option><option value="daily">Repeat daily</option><option value="weekly">Repeat weekly</option><option value="monthly">Repeat monthly</option></select>
                         <input class="field-control" id="taskDueDate" type="date" aria-label="Due date">
@@ -616,6 +619,7 @@
             <p class="dialog-caption">Update the details and keep your plan current.</p>
             <label class="dialog-field">Task name<input id="editTaskName" maxlength="160" required></label>
             <label class="dialog-field">Area<select id="editTaskCategory"><option>Personal</option><option>Work</option><option>Learning</option><option>Health</option></select></label>
+            <label class="dialog-field">Depends on<select id="editTaskDependency"><option value="">No dependency</option></select></label>
             <label class="dialog-field">Priority<select id="editTaskPriority"><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></label>
             <label class="dialog-field">Repeat<select id="editTaskRecurrence"><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
             <label class="dialog-field">Due date<input id="editTaskDueDate" type="date"></label>
