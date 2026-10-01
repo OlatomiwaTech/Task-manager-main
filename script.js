@@ -1095,7 +1095,9 @@ function openFocusSession(task = null) {
 function stopFocusSession() {
     clearInterval(focusTimer);
     focusTimer = null;
-    document.getElementById('toggleFocus').textContent = 'Start focus';
+    document.getElementById('toggleFocus').textContent = focusMode === 'break'
+        ? `Start ${document.getElementById('focusBreakDuration').value}-minute break`
+        : 'Start focus';
 }
 
 document.getElementById('showFocus').addEventListener('click', () => openFocusSession());
