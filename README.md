@@ -16,6 +16,7 @@ Daymark is a calm, responsive task manager built with vanilla HTML, CSS, and Jav
 - Search and filter tasks, track progress, and undo recent deletions.
 - Use keyboard shortcuts: `N` to quick-add, `/` to search, and `?` to open the shortcuts guide.
 - Export tasks as JSON.
+- Export open, dated tasks as an iCalendar file (`.ics`), including recurring schedules and task context.
 - Import JSON task exports into a profile without replacing its existing tasks; imported items can be undone.
 - Create browser-local profiles with separate task lists.
 

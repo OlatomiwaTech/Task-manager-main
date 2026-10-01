@@ -647,6 +647,94 @@ document.getElementById('exportTasks').addEventListener('click', () => {
     URL.revokeObjectURL(link.href);
 });
 
+function escapeCalendarText(value) {
+    return String(value || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/\r\n|\r|\n/g, '\\n')
+        .replace(/,/g, '\\,')
+        .replace(/;/g, '\\;');
+}
+
+function foldCalendarLine(line) {
+    const encoder = new TextEncoder();
+    let output = '';
+    let lineBytes = 0;
+    for (const character of line) {
+        const characterBytes = encoder.encode(character).length;
+        if (lineBytes + characterBytes > 75) {
+            output += '\r\n ';
+            lineBytes = 1;
+        }
+        output += character;
+        lineBytes += characterBytes;
+    }
+    return output;
+}
+
+function buildCalendarExport(taskList, createdAt = new Date()) {
+    const datedTasks = taskList.filter(task => {
+        if (task.completed || !/^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || '')) return false;
+        const date = new Date(`${task.dueDate}T00:00:00.000Z`);
+        return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === task.dueDate;
+    });
+    if (!datedTasks.length) return null;
+
+    const stamp = createdAt.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//Daymark//Task Calendar//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH'
+    ];
+
+    datedTasks.forEach(task => {
+        const start = new Date(`${task.dueDate}T00:00:00.000Z`);
+        const end = new Date(start);
+        end.setUTCDate(end.getUTCDate() + 1);
+        const endDate = end.toISOString().slice(0, 10).replace(/-/g, '');
+        const description = [
+            task.notes,
+            task.keywords?.length ? `Keywords: ${task.keywords.join(', ')}` : '',
+            task.subtasks?.length ? `Checklist:\n${task.subtasks.map(item => `${item.completed ? '[x]' : '[ ]'} ${item.text}`).join('\n')}` : ''
+        ].filter(Boolean).join('\n\n');
+        lines.push(
+            'BEGIN:VEVENT',
+            `UID:${escapeCalendarText(task.id)}@daymark.local`,
+            `DTSTAMP:${stamp}`,
+            `DTSTART;VALUE=DATE:${task.dueDate.replace(/-/g, '')}`,
+            `DTEND;VALUE=DATE:${endDate}`,
+            `SUMMARY:${escapeCalendarText(task.text)}`,
+            `CATEGORIES:${escapeCalendarText(task.category)}`,
+            `DESCRIPTION:${escapeCalendarText(description)}`,
+            'STATUS:CONFIRMED',
+            'TRANSP:TRANSPARENT'
+        );
+        const frequency = { daily: 'DAILY', weekly: 'WEEKLY', monthly: 'MONTHLY' }[task.recurrence];
+        if (frequency) lines.push(`RRULE:FREQ=${frequency}`);
+        lines.push('END:VEVENT');
+    });
+
+    lines.push('END:VCALENDAR');
+    return { content: `${lines.map(foldCalendarLine).join('\r\n')}\r\n`, count: datedTasks.length };
+}
+
+document.getElementById('exportCalendar').addEventListener('click', () => {
+    const calendar = buildCalendarExport(tasks);
+    if (!calendar) {
+        showUndo('No open tasks with due dates to export.', null);
+        return;
+    }
+    const file = new Blob([calendar.content], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(file);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `daymark-calendar-${todayKey}.ics`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showUndo(`Exported ${calendar.count} dated task${calendar.count === 1 ? '' : 's'} to calendar.`, null);
+});
+
 async function importTasksFromFile(event) {
     const file = event.target.files[0];
     if (!file) return;
