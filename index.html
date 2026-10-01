@@ -232,8 +232,8 @@
         .dialog-button.primary { border-color: var(--green); background: var(--green); color: white; }
 
         @media (max-width: 760px) {
-            .app-shell { grid-template-columns: 1fr; }
-            .sidebar { position: sticky; z-index: 2; top: 0; flex-direction: row; align-items: center; gap: 16px; padding: 11px 20px; border-right: 0; border-bottom: 1px solid #e2e5dc; }
+            .app-shell { grid-template-columns: minmax(0, 1fr); }
+            .sidebar { position: sticky; z-index: 2; top: 0; min-width: 0; flex-direction: row; align-items: center; gap: 16px; padding: 11px 20px; border-right: 0; border-bottom: 1px solid #e2e5dc; }
             .brand { flex: 0 0 auto; gap: 8px; margin: 0; font-size: 20px; }
             .brand-mark { width: 30px; height: 30px; font-size: 18px; }
             .side-label, .side-divider, .sidebar-bottom { display: none; }
