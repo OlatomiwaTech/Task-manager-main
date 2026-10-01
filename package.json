@@ -1,0 +1,12 @@
+{
+  "name": "daymark-task-manager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A calm task manager with optional AI-assisted planning.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20.12.0"
+  }
+}
