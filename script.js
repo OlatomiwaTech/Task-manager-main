@@ -17,6 +17,9 @@ let currentFilter = 'all';
 let editingTaskId = null;
 let undoSnapshot = null;
 let toastTimer;
+let focusTimer = null;
+let focusSeconds = 25 * 60;
+let focusTaskId = null;
 
 function loadSession() {
     try {
