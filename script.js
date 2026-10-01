@@ -56,7 +56,8 @@ function loadTasks(email) {
             dueDate: typeof task.dueDate === 'string' ? task.dueDate : '',
             recurrence: ['daily', 'weekly', 'monthly'].includes(task.recurrence) ? task.recurrence : 'none',
             notes: typeof task.notes === 'string' ? task.notes.slice(0, 1000) : '',
-            keywords: Array.isArray(task.keywords) ? [...new Set(task.keywords.map(keyword => String(keyword).trim().replace(/^#+/, '').toLocaleLowerCase()).filter(Boolean))].slice(0, 8) : []
+            keywords: Array.isArray(task.keywords) ? [...new Set(task.keywords.map(keyword => String(keyword).trim().replace(/^#+/, '').toLocaleLowerCase()).filter(Boolean))].slice(0, 8) : [],
+            subtasks: normalizeSubtasks(task.subtasks)
         })).filter(task => task.text);
     } catch {
         return [];
@@ -95,11 +96,13 @@ function addTask(event) {
         dueDate: document.getElementById('taskDueDate').value,
         recurrence: document.getElementById('taskRecurrence').value,
         notes: document.getElementById('taskNotes').value.trim().slice(0, 1000),
-        keywords: parseKeywords(document.getElementById('taskKeywords').value)
+        keywords: parseKeywords(document.getElementById('taskKeywords').value),
+        subtasks: parseSubtasks(document.getElementById('taskSubtasks').value)
     });
     input.value = '';
     document.getElementById('taskDueDate').value = '';
     document.getElementById('taskNotes').value = '';
+    document.getElementById('taskSubtasks').value = '';
     document.getElementById('taskKeywords').value = '';
     currentView = 'all';
     currentFilter = 'all';
@@ -110,6 +113,23 @@ function addTask(event) {
 
 function parseKeywords(value) {
     return [...new Set(value.split(',').map(keyword => keyword.trim().replace(/^#+/, '').toLocaleLowerCase()).filter(Boolean))].slice(0, 8);
+}
+
+function normalizeSubtasks(items) {
+    if (!Array.isArray(items)) return [];
+    return items.slice(0, 12).map(item => {
+        const text = typeof item === 'string' ? item.trim() : String(item?.text || '').trim();
+        return { id: item?.id || crypto.randomUUID(), text: text.slice(0, 160), completed: Boolean(item?.completed) };
+    }).filter(item => item.text);
+}
+
+function parseSubtasks(value, existing = []) {
+    const available = [...existing];
+    return [...new Set(value.split('\n').map(line => line.trim().slice(0, 160)).filter(Boolean))].slice(0, 12).map(text => {
+        const matchIndex = available.findIndex(item => item.text.toLocaleLowerCase() === text.toLocaleLowerCase());
+        if (matchIndex < 0) return { id: crypto.randomUUID(), text, completed: false };
+        return available.splice(matchIndex, 1)[0];
+    });
 }
 
 function showUndo(message, previousTasks) {
@@ -135,6 +155,7 @@ function editTask(id) {
     document.getElementById('editTaskDueDate').value = task.dueDate;
     document.getElementById('editTaskNotes').value = task.notes;
     document.getElementById('editTaskKeywords').value = task.keywords.join(', ');
+    document.getElementById('editTaskSubtasks').value = task.subtasks.map(subtask => subtask.text).join('\n');
     document.getElementById('editDialog').showModal();
     document.getElementById('editTaskName').focus();
 }
@@ -168,6 +189,14 @@ function toggleTask(id) {
     saveAndRender();
 }
 
+function toggleSubtask(taskId, subtaskId) {
+    tasks = tasks.map(task => task.id === taskId ? {
+        ...task,
+        subtasks: task.subtasks.map(subtask => subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask)
+    } : task);
+    saveAndRender();
+}
+
 function deleteTask(id) {
     tasks = tasks.filter(task => task.id !== id);
     saveAndRender();
@@ -185,7 +214,8 @@ function getVisibleTasks() {
         const matchesFilter = currentFilter === 'all' ||
             (currentFilter === 'active' && !task.completed) ||
             (currentFilter === 'completed' && task.completed);
-        return matchesView && matchesFilter && `${task.text} ${task.notes} ${task.category} ${task.priority} ${task.keywords.join(' ')}`.toLocaleLowerCase().includes(query);
+        const checklistText = task.subtasks.map(subtask => subtask.text).join(' ');
+        return matchesView && matchesFilter && `${task.text} ${task.notes} ${checklistText} ${task.category} ${task.priority} ${task.keywords.join(' ')}`.toLocaleLowerCase().includes(query);
     });
     const sortBy = document.getElementById('sortTasks').value;
     if (sortBy === 'due') return visibleTasks.sort((first, second) => (first.dueDate || '9999-12-31').localeCompare(second.dueDate || '9999-12-31'));
@@ -249,6 +279,30 @@ function renderTask(task) {
             keywordList.append(chip);
         });
         content.append(keywordList);
+    }
+    if (task.subtasks.length) {
+        const completedSubtasks = task.subtasks.filter(subtask => subtask.completed).length;
+        const progress = document.createElement('div');
+        progress.className = 'subtask-progress';
+        progress.textContent = `${completedSubtasks} of ${task.subtasks.length} steps complete`;
+        const checklist = document.createElement('ul');
+        checklist.className = 'subtask-list';
+        task.subtasks.forEach(subtask => {
+            const row = document.createElement('li');
+            row.className = `subtask-item${subtask.completed ? ' completed' : ''}`;
+            const toggle = document.createElement('button');
+            toggle.className = 'subtask-toggle';
+            toggle.type = 'button';
+            toggle.setAttribute('aria-pressed', String(subtask.completed));
+            toggle.setAttribute('aria-label', `${subtask.completed ? 'Mark incomplete' : 'Complete'} step: ${subtask.text}`);
+            toggle.textContent = subtask.completed ? '✓' : '';
+            toggle.addEventListener('click', () => toggleSubtask(task.id, subtask.id));
+            const label = document.createElement('span');
+            label.textContent = subtask.text;
+            row.append(toggle, label);
+            checklist.append(row);
+        });
+        content.append(progress, checklist);
     }
 
     const actions = document.createElement('div');
@@ -497,7 +551,8 @@ document.getElementById('editForm').addEventListener('submit', event => {
         dueDate: document.getElementById('editTaskDueDate').value,
         recurrence: document.getElementById('editTaskRecurrence').value,
         notes: document.getElementById('editTaskNotes').value.trim().slice(0, 1000),
-        keywords: parseKeywords(document.getElementById('editTaskKeywords').value)
+        keywords: parseKeywords(document.getElementById('editTaskKeywords').value),
+        subtasks: parseSubtasks(document.getElementById('editTaskSubtasks').value, task.subtasks)
     } : task);
     document.getElementById('editDialog').close();
     saveAndRender();
@@ -527,7 +582,8 @@ async function importTasksFromFile(event) {
             dueDate: typeof task.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(task.dueDate) ? task.dueDate : '',
             recurrence: ['daily', 'weekly', 'monthly'].includes(task.recurrence) ? task.recurrence : 'none',
             notes: typeof task.notes === 'string' ? task.notes.trim().slice(0, 1000) : '',
-            keywords: Array.isArray(task.keywords) ? parseKeywords(task.keywords.join(',')) : parseKeywords(typeof task.keywords === 'string' ? task.keywords : '')
+            keywords: Array.isArray(task.keywords) ? parseKeywords(task.keywords.join(',')) : parseKeywords(typeof task.keywords === 'string' ? task.keywords : ''),
+            subtasks: normalizeSubtasks(task.subtasks)
         }));
         if (!imported.length) throw new Error('No valid tasks were found in that file.');
         const previousTasks = [...tasks];
