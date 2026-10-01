@@ -365,6 +365,13 @@
         .focus-options label { display: grid; gap: 6px; color: var(--muted); font-size: 10px; }
         .focus-options select { width: 100%; min-height: 36px; padding: 0 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--ink); font: inherit; font-size: 11px; }
         .focus-history { margin: 12px 0 0; color: var(--muted); font-size: 10px; text-align: center; }
+        .schedule-list { display: grid; gap: 8px; max-height: 320px; overflow-y: auto; margin: 15px 0 0; padding: 0; list-style: none; }
+        .schedule-item { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; align-items: start; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); }
+        .schedule-date { color: var(--green-dark); font-size: 10px; font-weight: 700; }
+        .schedule-task strong { display: block; color: var(--ink); font-size: 11px; font-weight: 650; }
+        .schedule-task span { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+        .schedule-estimate { color: var(--muted); font-size: 10px; white-space: nowrap; }
+        .dialog-button:disabled { cursor: not-allowed; opacity: .5; }
 
         @media (max-width: 760px) {
             .app-shell { grid-template-columns: minmax(0, 1fr); }
@@ -489,6 +496,10 @@
         [data-theme="dark"] .focus-task-label { color: #adb9ae; }
         [data-theme="dark"] .focus-options label, [data-theme="dark"] .focus-history { color: #adb9ae; }
         [data-theme="dark"] .focus-options select { border-color: #3a473d; background: #151d18; color: var(--ink); }
+        [data-theme="dark"] .schedule-item { border-color: #354138; background: #151d18; }
+        [data-theme="dark"] .schedule-date { color: #c1d8c3; }
+        [data-theme="dark"] .schedule-task strong { color: #e6eee7; }
+        [data-theme="dark"] .schedule-task span, [data-theme="dark"] .schedule-estimate { color: #a7b4a8; }
     </style>
 </head>
 <body>
@@ -602,6 +613,7 @@
                         <div class="list-tools">
                             <label class="search-wrap"><span class="search-icon" aria-hidden="true">⌕</span><input class="search-input" id="searchInput" type="search" placeholder="Search tasks" aria-label="Search tasks"></label>
                             <select class="sort-select" id="sortTasks" aria-label="Sort tasks"><option value="newest">Recently added</option><option value="manual">Manual order</option><option value="due">Due date</option><option value="priority">Priority</option></select>
+                            <button class="import-button" id="showSchedule" type="button">AI schedule</button>
                             <button class="import-button" id="importTasksButton" type="button">↑ Import</button>
                             <input class="file-input-hidden" id="importTasksFile" type="file" accept=".json,application/json,.ics,text/calendar" aria-label="Choose a task or calendar export file">
                             <button class="clear-button" id="clearCompleted" type="button">Clear completed</button>
@@ -652,6 +664,17 @@
             <p class="focus-status" id="focusStatus">Ready when you are.</p>
             <p class="focus-history" id="focusHistory">No completed focus sessions yet.</p>
             <div class="focus-controls"><button class="dialog-button" id="resetFocus" type="button">Reset</button><button class="dialog-button primary" id="toggleFocus" type="button">Start focus</button><button class="dialog-button" id="closeFocus" type="button">Close</button></div>
+        </div>
+    </dialog>
+    <dialog class="edit-dialog" id="scheduleDialog" aria-labelledby="scheduleTitle">
+        <div class="dialog-content">
+            <h2 class="dialog-heading" id="scheduleTitle">Plan your week</h2>
+            <p class="dialog-caption">Get a suggested order for open tasks. Existing deadlines stay fixed.</p>
+            <label class="dialog-field">Available focus time per day<select id="scheduleCapacity"><option value="60">1 hour</option><option value="120" selected>2 hours</option><option value="180">3 hours</option><option value="240">4 hours</option><option value="360">6 hours</option></select></label>
+            <button class="dialog-button primary" id="generateSchedule" type="button">Suggest schedule</button>
+            <p class="focus-status" id="scheduleStatus" role="status" aria-live="polite"></p>
+            <ul class="schedule-list" id="scheduleResults"></ul>
+            <div class="dialog-actions"><button class="dialog-button" id="closeSchedule" type="button">Close</button><button class="dialog-button primary" id="applySchedule" type="button" disabled>Apply missing dates</button></div>
         </div>
     </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastMessage"></span><button id="undoAction" type="button">Undo</button></div>

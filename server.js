@@ -172,6 +172,117 @@ async function planTask(request, response) {
     }
 }
 
+async function suggestSchedule(request, response) {
+    if (!process.env.OPENAI_API_KEY) {
+        sendJson(response, 503, { error: 'AI is not configured yet. Add OPENAI_API_KEY to your .env file and restart Daymark.' });
+        return;
+    }
+
+    let payload;
+    try {
+        payload = await readJson(request, 24_000);
+    } catch (error) {
+        sendJson(response, error.statusCode || 400, { error: error.statusCode ? error.message : 'Send a valid schedule request.' });
+        return;
+    }
+
+    const today = typeof payload?.today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(payload.today) ? payload.today : '';
+    const capacity = Number(payload?.availableMinutesPerDay);
+    const sourceTasks = Array.isArray(payload?.tasks) ? payload.tasks.slice(0, 30) : [];
+    const scheduleTasks = sourceTasks.filter(task => task && typeof task.id === 'string' && typeof task.title === 'string' && task.title.trim()).map(task => ({
+        id: task.id.slice(0, 80),
+        title: task.title.trim().slice(0, 160),
+        dueDate: typeof task.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(task.dueDate) ? task.dueDate : '',
+        priority: ['high', 'normal', 'low'].includes(task.priority) ? task.priority : 'normal',
+        category: typeof task.category === 'string' ? task.category.slice(0, 40) : 'Personal',
+        checklistCount: Math.min(12, Number(task.checklistCount) || 0),
+        blockedBy: typeof task.blockedBy === 'string' ? task.blockedBy.slice(0, 160) : ''
+    }));
+    if (!today || !Number.isInteger(capacity) || capacity < 30 || capacity > 600 || !scheduleTasks.length) {
+        sendJson(response, 400, { error: 'Choose a valid day, daily capacity, and at least one open task.' });
+        return;
+    }
+
+    try {
+        const upstream = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model,
+                response_format: { type: 'json_object' },
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Create a realistic seven-day task schedule. Return JSON with a schedule array; each item has taskId (exact input id), dayOffset (integer 0 through 6), estimateMinutes (integer), and reason (short string). Include every task exactly once. Honor existing due dates, prioritize high priority and blockers, put prerequisite tasks before dependent tasks, and keep total estimated minutes per day within the supplied capacity. Do not invent task ids.'
+                    },
+                    { role: 'user', content: JSON.stringify({ today, availableMinutesPerDay: capacity, tasks: scheduleTasks }) }
+                ],
+                max_tokens: 1200,
+                temperature: 0.2
+            })
+        });
+
+        if (!upstream.ok) {
+            const providerError = await upstream.json().catch(() => ({}));
+            const errorCode = providerError.error?.code;
+            let message = `AI provider request failed (${upstream.status}). Check your model and API account.`;
+            if (upstream.status === 429 && ['insufficient_quota', 'credit_balance_exhausted'].includes(errorCode)) {
+                message = 'Your OpenAI API project has no available credits. Add API billing or credits, then try again.';
+            } else if (upstream.status === 429) {
+                message = 'OpenAI rate limit reached. Wait a moment and try again.';
+            } else if (upstream.status === 401) {
+                message = 'OpenAI rejected the API key. Check OPENAI_API_KEY in .env and restart Daymark.';
+            }
+            sendJson(response, 502, { error: message });
+            return;
+        }
+
+        const result = await upstream.json();
+        const plan = JSON.parse(result.choices?.[0]?.message?.content || '{}');
+        const sourceById = new Map(scheduleTasks.map(task => [task.id, task]));
+        const dailyTotals = Array(7).fill(0);
+        const seen = new Set();
+        const schedule = (Array.isArray(plan.schedule) ? plan.schedule : []).flatMap(item => {
+            if (!item || typeof item.taskId !== 'string' || !sourceById.has(item.taskId) || seen.has(item.taskId)) return [];
+            seen.add(item.taskId);
+            const task = sourceById.get(item.taskId);
+            const requestedOffset = Math.max(0, Math.min(6, Math.floor(Number(item.dayOffset) || 0)));
+            let latestOffset = 6;
+            if (task.dueDate) {
+                const dueTime = Date.parse(`${task.dueDate}T00:00:00Z`);
+                const todayTime = Date.parse(`${today}T00:00:00Z`);
+                latestOffset = Math.max(0, Math.min(6, Math.floor((dueTime - todayTime) / 86_400_000)));
+            }
+            let dayOffset = Math.min(requestedOffset, latestOffset);
+            let estimateMinutes = Math.max(15, Math.min(240, Math.floor(Number(item.estimateMinutes) || 30)));
+            estimateMinutes = Math.min(estimateMinutes, capacity);
+            while (dayOffset < latestOffset && dailyTotals[dayOffset] + estimateMinutes > capacity) dayOffset++;
+            dailyTotals[dayOffset] += estimateMinutes;
+            const scheduledDate = new Date(`${today}T00:00:00Z`);
+            scheduledDate.setUTCDate(scheduledDate.getUTCDate() + dayOffset);
+            return [{
+                taskId: task.id,
+                title: task.title,
+                dayOffset,
+                scheduledDate: scheduledDate.toISOString().slice(0, 10),
+                estimateMinutes,
+                reason: typeof item.reason === 'string' ? item.reason.trim().slice(0, 140) : ''
+            }];
+        });
+        if (!schedule.length) {
+            sendJson(response, 502, { error: 'The AI returned no usable schedule. Try again.' });
+            return;
+        }
+        sendJson(response, 200, { schedule, scheduledCount: schedule.length, unscheduledCount: scheduleTasks.length - schedule.length });
+    } catch (error) {
+        console.error('AI schedule request failed:', error.message);
+        sendJson(response, 502, { error: 'Could not create a schedule. Check your connection and try again.' });
+    }
+}
+
 const server = createServer(async (request, response) => {
     const pathname = new URL(request.url, `http://${host}`).pathname;
     if (request.method === 'POST' && pathname === '/api/ai/plan') {
@@ -180,6 +291,16 @@ const server = createServer(async (request, response) => {
         } catch (error) {
             console.error('AI route failed:', error.message);
             if (!response.headersSent) sendJson(response, 500, { error: 'The planner encountered a server error. Restart Daymark and try again.' });
+            else response.destroy();
+        }
+        return;
+    }
+    if (request.method === 'POST' && pathname === '/api/ai/schedule') {
+        try {
+            await suggestSchedule(request, response);
+        } catch (error) {
+            console.error('AI schedule route failed:', error.message);
+            if (!response.headersSent) sendJson(response, 500, { error: 'The scheduler encountered a server error.' });
             else response.destroy();
         }
         return;

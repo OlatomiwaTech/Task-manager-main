@@ -27,6 +27,7 @@ let focusTotalSeconds = 25 * 60;
 let focusTaskId = null;
 let focusMode = 'focus';
 let draggingTaskId = null;
+let scheduleSuggestions = [];
 
 function loadSession() {
     try {
@@ -386,6 +387,107 @@ async function generateTaskPlan() {
     } finally {
         button.disabled = false;
         button.innerHTML = '<span aria-hidden="true">✦</span> Plan with AI';
+    }
+}
+
+function openScheduleDialog() {
+    scheduleSuggestions = [];
+    document.getElementById('scheduleResults').replaceChildren();
+    document.getElementById('scheduleStatus').textContent = '';
+    document.getElementById('applySchedule').disabled = true;
+    document.getElementById('scheduleDialog').showModal();
+}
+
+async function generateScheduleSuggestions() {
+    const button = document.getElementById('generateSchedule');
+    const status = document.getElementById('scheduleStatus');
+    const activeTasks = tasks.filter(task => !task.completed);
+    if (!activeTasks.length) {
+        status.textContent = 'Add an open task before planning your week.';
+        return;
+    }
+
+    button.disabled = true;
+    status.textContent = 'Balancing tasks against your capacity…';
+    try {
+        const taskById = new Map(tasks.map(task => [String(task.id), task]));
+        const response = await fetch('/api/ai/schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                today: todayKey,
+                availableMinutesPerDay: Number(document.getElementById('scheduleCapacity').value),
+                tasks: activeTasks.map(task => ({
+                    id: String(task.id),
+                    title: task.text,
+                    dueDate: task.dueDate,
+                    priority: task.priority,
+                    category: task.category,
+                    checklistCount: task.subtasks.length,
+                    blockedBy: task.dependencyTaskId ? taskById.get(String(task.dependencyTaskId))?.text || '' : ''
+                }))
+            })
+        });
+        const responseText = await response.text();
+        let result = null;
+        try {
+            result = responseText ? JSON.parse(responseText) : null;
+        } catch {
+            throw new Error(`Scheduler returned an unreadable response (HTTP ${response.status}).`);
+        }
+        if (!response.ok) throw new Error(result?.error || `Schedule request failed (HTTP ${response.status}).`);
+        scheduleSuggestions = Array.isArray(result?.schedule) ? result.schedule : [];
+        if (!scheduleSuggestions.length) throw new Error('The scheduler returned no usable suggestions.');
+
+        const list = document.getElementById('scheduleResults');
+        list.replaceChildren();
+        scheduleSuggestions.forEach(suggestion => {
+            const item = document.createElement('li');
+            item.className = 'schedule-item';
+            const date = document.createElement('span');
+            date.className = 'schedule-date';
+            date.textContent = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(`${suggestion.scheduledDate}T00:00:00`));
+            const task = document.createElement('span');
+            task.className = 'schedule-task';
+            const title = document.createElement('strong');
+            title.textContent = suggestion.title;
+            const reason = document.createElement('span');
+            reason.textContent = suggestion.reason || 'Fits your available focus time.';
+            task.append(title, reason);
+            const estimate = document.createElement('span');
+            estimate.className = 'schedule-estimate';
+            estimate.textContent = `${suggestion.estimateMinutes} min`;
+            item.append(date, task, estimate);
+            list.append(item);
+        });
+        const unscheduled = Number(result.unscheduledCount) || 0;
+        status.textContent = `${scheduleSuggestions.length} task${scheduleSuggestions.length === 1 ? '' : 's'} placed${unscheduled ? ` · ${unscheduled} could not be placed` : ''}. Existing due dates will not be changed.`;
+        document.getElementById('applySchedule').disabled = false;
+    } catch (error) {
+        status.textContent = error instanceof TypeError
+            ? 'Could not reach the scheduler. Start Daymark with npm start and try again.'
+            : error.message;
+    } finally {
+        button.disabled = false;
+    }
+}
+
+function applyScheduleSuggestions() {
+    const suggestions = new Map(scheduleSuggestions.map(suggestion => [String(suggestion.taskId), suggestion]));
+    const previousTasks = [...tasks];
+    let changed = 0;
+    tasks = tasks.map(task => {
+        const suggestion = suggestions.get(String(task.id));
+        if (task.completed || task.dueDate || !suggestion?.scheduledDate) return task;
+        changed++;
+        return { ...task, dueDate: suggestion.scheduledDate };
+    });
+    document.getElementById('scheduleDialog').close();
+    if (changed) {
+        saveAndRender();
+        showUndo(`Applied suggested dates to ${changed} task${changed === 1 ? '' : 's'}`, previousTasks);
+    } else {
+        document.getElementById('scheduleStatus').textContent = 'No task dates needed updating.';
     }
 }
 
@@ -857,6 +959,10 @@ document.getElementById('signOut').addEventListener('click', () => {
 
 document.getElementById('taskForm').addEventListener('submit', addTask);
 document.getElementById('aiPlanButton').addEventListener('click', generateTaskPlan);
+document.getElementById('showSchedule').addEventListener('click', openScheduleDialog);
+document.getElementById('generateSchedule').addEventListener('click', generateScheduleSuggestions);
+document.getElementById('applySchedule').addEventListener('click', applyScheduleSuggestions);
+document.getElementById('closeSchedule').addEventListener('click', () => document.getElementById('scheduleDialog').close());
 document.getElementById('parseNaturalTask').addEventListener('click', parseQuickCapture);
 document.getElementById('searchInput').addEventListener('input', render);
 document.getElementById('clearCompleted').addEventListener('click', () => {
