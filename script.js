@@ -50,7 +50,8 @@ function loadTasks(email) {
             completed: Boolean(task.completed),
             category: categoryColors[task.category] ? task.category : 'Personal',
             priority: priorityColors[task.priority] ? task.priority : 'normal',
-            dueDate: typeof task.dueDate === 'string' ? task.dueDate : ''
+            dueDate: typeof task.dueDate === 'string' ? task.dueDate : '',
+            recurrence: ['daily', 'weekly', 'monthly'].includes(task.recurrence) ? task.recurrence : 'none'
         })).filter(task => task.text);
     } catch {
         return [];
@@ -86,7 +87,8 @@ function addTask(event) {
         completed: false,
         category: document.getElementById('taskCategory').value,
         priority: document.getElementById('taskPriority').value,
-        dueDate: document.getElementById('taskDueDate').value
+        dueDate: document.getElementById('taskDueDate').value,
+        recurrence: document.getElementById('taskRecurrence').value
     });
     input.value = '';
     document.getElementById('taskDueDate').value = '';
@@ -115,13 +117,38 @@ function editTask(id) {
     document.getElementById('editTaskName').value = task.text;
     document.getElementById('editTaskCategory').value = task.category;
     document.getElementById('editTaskPriority').value = task.priority;
+    document.getElementById('editTaskRecurrence').value = task.recurrence;
     document.getElementById('editTaskDueDate').value = task.dueDate;
     document.getElementById('editDialog').showModal();
     document.getElementById('editTaskName').focus();
 }
 
+function nextOccurrence(task) {
+    const baseDate = task.dueDate && task.dueDate > todayKey ? task.dueDate : todayKey;
+    const nextDate = new Date(`${baseDate}T00:00:00`);
+    if (task.recurrence === 'daily') nextDate.setDate(nextDate.getDate() + 1);
+    if (task.recurrence === 'weekly') nextDate.setDate(nextDate.getDate() + 7);
+    if (task.recurrence === 'monthly') {
+        const dayOfMonth = nextDate.getDate();
+        nextDate.setDate(1);
+        nextDate.setMonth(nextDate.getMonth() + 1);
+        const lastDay = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
+        nextDate.setDate(Math.min(dayOfMonth, lastDay));
+    }
+    return [nextDate.getFullYear(), String(nextDate.getMonth() + 1).padStart(2, '0'), String(nextDate.getDate()).padStart(2, '0')].join('-');
+}
+
 function toggleTask(id) {
-    tasks = tasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task);
+    let nextTask = null;
+    tasks = tasks.map(task => {
+        if (task.id !== id) return task;
+        if (task.completed) return { ...task, completed: false };
+        if (task.recurrence !== 'none') {
+            nextTask = { ...task, id: crypto.randomUUID(), completed: false, dueDate: nextOccurrence(task) };
+        }
+        return { ...task, completed: true };
+    });
+    if (nextTask) tasks.unshift(nextTask);
     saveAndRender();
 }
 
@@ -181,6 +208,12 @@ function renderTask(task) {
     priority.className = 'priority';
     priority.innerHTML = `<span class="priority-mark" style="--priority-color: ${priorityColors[task.priority]}"></span>${task.priority[0].toUpperCase()}${task.priority.slice(1)} priority`;
     meta.append(category, due, priority);
+    if (task.recurrence !== 'none') {
+        const repeat = document.createElement('span');
+        repeat.className = 'recurrence-label';
+        repeat.innerHTML = `↻ ${task.recurrence[0].toUpperCase()}${task.recurrence.slice(1)}`;
+        meta.append(repeat);
+    }
     content.append(name, meta);
 
     const actions = document.createElement('div');
@@ -415,7 +448,8 @@ document.getElementById('editForm').addEventListener('submit', event => {
         text: document.getElementById('editTaskName').value.trim(),
         category: document.getElementById('editTaskCategory').value,
         priority: document.getElementById('editTaskPriority').value,
-        dueDate: document.getElementById('editTaskDueDate').value
+        dueDate: document.getElementById('editTaskDueDate').value,
+        recurrence: document.getElementById('editTaskRecurrence').value
     } : task);
     document.getElementById('editDialog').close();
     saveAndRender();
@@ -427,6 +461,27 @@ document.getElementById('exportTasks').addEventListener('click', () => {
     link.download = `daymark-tasks-${todayKey}.json`;
     link.click();
     URL.revokeObjectURL(link.href);
+});
+document.getElementById('showShortcuts').addEventListener('click', () => document.getElementById('shortcutsDialog').showModal());
+document.getElementById('closeShortcuts').addEventListener('click', () => document.getElementById('shortcutsDialog').close());
+document.addEventListener('keydown', event => {
+    if (document.getElementById('authScreen').hidden === false) return;
+    const target = event.target;
+    const isTyping = target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+    if (event.key === 'Escape') {
+        if (document.getElementById('shortcutsDialog').open) document.getElementById('shortcutsDialog').close();
+        return;
+    }
+    if (isTyping || document.getElementById('editDialog').open || document.getElementById('shortcutsDialog').open) return;
+    if (event.key.toLowerCase() === 'n') {
+        event.preventDefault();
+        document.getElementById('taskInput').focus();
+    } else if (event.key === '/') {
+        event.preventDefault();
+        document.getElementById('searchInput').focus();
+    } else if (event.key === '?') {
+        document.getElementById('shortcutsDialog').showModal();
+    }
 });
 document.querySelectorAll('.nav-button[data-view]').forEach(button => {
     button.addEventListener('click', () => { currentView = button.dataset.view; currentFilter = 'all'; render(); });
