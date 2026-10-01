@@ -411,6 +411,11 @@
             .toast { right: 16px; bottom: 16px; }
         }
 
+        @media (max-width: 360px) {
+            .topbar { align-items: flex-start; flex-direction: column; gap: 9px; }
+            .topbar-right { width: 100%; justify-content: flex-end; gap: 6px; }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
         }

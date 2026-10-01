@@ -11,12 +11,15 @@ Daymark is a calm, responsive task manager built with vanilla HTML, CSS, and Jav
 - Organize tasks into Personal, Work, Learning, and Health categories.
 - Add searchable keywords, set priorities and due dates, and sort tasks by due date or priority.
 - Use dedicated views for today's tasks, overdue tasks, upcoming tasks, and completed work.
+- Review a seven-day completion chart based on task completion history.
+- Parse dates, priorities, areas, recurrence, and hashtags from quick-capture text.
+- Reorder tasks with drag-and-drop in Manual order mode.
+- Set browser notification reminders for tasks with a chosen date and time.
 - Schedule daily, weekly, or monthly recurring tasks. Completing one creates its next occurrence.
-- Start a task-linked 25-minute focus session with pause and reset controls.
+- Run configurable focus and break sessions, with per-profile focus history.
 - Search and filter tasks, track progress, and undo recent deletions.
 - Use keyboard shortcuts: `N` to quick-add, `/` to search, and `?` to open the shortcuts guide.
 - Export tasks as JSON.
-- Export open tasks with due dates as iCalendar (`.ics`) events, including recurrence and task details.
 - Export open, dated tasks as an iCalendar file (`.ics`), including recurring schedules and task context.
 - Import JSON task exports into a profile without replacing its existing tasks; imported items can be undone.
 - Create browser-local profiles with separate task lists.
@@ -30,7 +33,7 @@ Daymark's AI planner uses a small local Node.js server so your API key stays out
 3. Start Daymark with `npm start`.
 4. Open the local URL printed by the server (by default, `http://127.0.0.1:4173`).
 
-The AI planner sends the current task title and notes to OpenAI only when you click **Plan with AI**. The API key remains on the local server. OpenAI API access also requires available project credits; a valid key alone does not include usage. Do not commit `.env`; it is ignored by Git. Other app features continue to work without an API key.
+The AI planner sends the current task title and notes to OpenAI only when you click **Plan with AI**. The API key remains on the local server. OpenAI API access also requires available project credits; a valid key alone does not include usage. Browser reminders require notification permission and Daymark to remain open; reminders while the app is closed need a push-notification service. Do not commit `.env`; it is ignored by Git. Other app features continue to work without an API key.
 
 ## Storage and sign-in
 
