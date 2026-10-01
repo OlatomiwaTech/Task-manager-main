@@ -11,6 +11,9 @@ const todayKey = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, 
 let tasks = loadTasks();
 let currentView = 'today';
 let currentFilter = 'all';
+let editingTaskId = null;
+let undoSnapshot = null;
+let toastTimer;
 
 function loadTasks() {
     try {
@@ -68,6 +71,29 @@ function addTask(event) {
     localStorage.setItem(storageKey, JSON.stringify(tasks));
 }
 
+function showUndo(message, previousTasks) {
+    undoSnapshot = previousTasks;
+    document.getElementById('toastMessage').textContent = message;
+    document.getElementById('toast').hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+        document.getElementById('toast').hidden = true;
+        undoSnapshot = null;
+    }, 5000);
+}
+
+function editTask(id) {
+    const task = tasks.find(item => item.id === id);
+    if (!task) return;
+    editingTaskId = id;
+    document.getElementById('editTaskName').value = task.text;
+    document.getElementById('editTaskCategory').value = task.category;
+    document.getElementById('editTaskPriority').value = task.priority;
+    document.getElementById('editTaskDueDate').value = task.dueDate;
+    document.getElementById('editDialog').showModal();
+    document.getElementById('editTaskName').focus();
+}
+
 function toggleTask(id) {
     tasks = tasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task);
     saveAndRender();
@@ -80,7 +106,7 @@ function deleteTask(id) {
 
 function getVisibleTasks() {
     const query = document.getElementById('searchInput').value.trim().toLocaleLowerCase();
-    return tasks.filter(task => {
+    const visibleTasks = tasks.filter(task => {
         const matchesView = currentView === 'all' ||
             (currentView === 'completed' && task.completed) ||
             (currentView === 'today' && !task.completed && (!task.dueDate || task.dueDate <= todayKey)) ||
@@ -90,6 +116,13 @@ function getVisibleTasks() {
             (currentFilter === 'completed' && task.completed);
         return matchesView && matchesFilter && `${task.text} ${task.category} ${task.priority}`.toLocaleLowerCase().includes(query);
     });
+    const sortBy = document.getElementById('sortTasks').value;
+    if (sortBy === 'due') return visibleTasks.sort((first, second) => (first.dueDate || '9999-12-31').localeCompare(second.dueDate || '9999-12-31'));
+    if (sortBy === 'priority') {
+        const weight = { high: 0, normal: 1, low: 2 };
+        return visibleTasks.sort((first, second) => weight[first.priority] - weight[second.priority]);
+    }
+    return visibleTasks;
 }
 
 function renderTask(task) {
@@ -124,14 +157,28 @@ function renderTask(task) {
     meta.append(category, due, priority);
     content.append(name, meta);
 
+    const actions = document.createElement('div');
+    actions.className = 'task-actions';
+    const edit = document.createElement('button');
+    edit.className = 'task-action';
+    edit.type = 'button';
+    edit.setAttribute('aria-label', `Edit ${task.text}`);
+    edit.title = 'Edit task';
+    edit.textContent = '✎';
+    edit.addEventListener('click', () => editTask(task.id));
     const remove = document.createElement('button');
-    remove.className = 'delete-button';
+    remove.className = 'task-action delete';
     remove.type = 'button';
     remove.setAttribute('aria-label', `Delete ${task.text}`);
     remove.title = 'Delete task';
     remove.textContent = '×';
-    remove.addEventListener('click', () => deleteTask(task.id));
-    item.append(complete, content, remove);
+    remove.addEventListener('click', () => {
+        const previousTasks = [...tasks];
+        deleteTask(task.id);
+        showUndo('Task deleted', previousTasks);
+    });
+    actions.append(edit, remove);
+    item.append(complete, content, actions);
     return item;
 }
 
@@ -206,8 +253,42 @@ function render() {
 document.getElementById('taskForm').addEventListener('submit', addTask);
 document.getElementById('searchInput').addEventListener('input', render);
 document.getElementById('clearCompleted').addEventListener('click', () => {
-    tasks = tasks.filter(task => !task.completed);
+    const previousTasks = [...tasks];
+    const remaining = tasks.filter(task => !task.completed);
+    if (remaining.length === tasks.length) return;
+    tasks = remaining;
     saveAndRender();
+    showUndo('Completed tasks cleared', previousTasks);
+});
+document.getElementById('undoAction').addEventListener('click', () => {
+    if (!undoSnapshot) return;
+    tasks = undoSnapshot;
+    undoSnapshot = null;
+    clearTimeout(toastTimer);
+    document.getElementById('toast').hidden = true;
+    saveAndRender();
+});
+document.getElementById('sortTasks').addEventListener('change', render);
+document.getElementById('cancelEdit').addEventListener('click', () => document.getElementById('editDialog').close());
+document.getElementById('editForm').addEventListener('submit', event => {
+    event.preventDefault();
+    tasks = tasks.map(task => task.id === editingTaskId ? {
+        ...task,
+        text: document.getElementById('editTaskName').value.trim(),
+        category: document.getElementById('editTaskCategory').value,
+        priority: document.getElementById('editTaskPriority').value,
+        dueDate: document.getElementById('editTaskDueDate').value
+    } : task);
+    document.getElementById('editDialog').close();
+    saveAndRender();
+});
+document.getElementById('exportTasks').addEventListener('click', () => {
+    const file = new Blob([JSON.stringify(tasks, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(file);
+    link.download = `daymark-tasks-${todayKey}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
 });
 document.querySelectorAll('.nav-button[data-view]').forEach(button => {
     button.addEventListener('click', () => { currentView = button.dataset.view; currentFilter = 'all'; render(); });
