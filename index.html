@@ -1,101 +1,325 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f5f5f0">
+    <title>Daymark | A calmer way to get things done</title>
     <style>
         :root {
-            --primary: #6366f1;
-            --bg: #0f172a;
-            --card: #1e293b;
-            --text: #f8fafc;
+            color-scheme: light;
+            --paper: #f5f5f0;
+            --surface: #fffefa;
+            --ink: #202923;
+            --muted: #758078;
+            --line: #e5e8df;
+            --green: #476b52;
+            --green-dark: #35533e;
+            --mint: #e6eee4;
+            --coral: #d5775f;
+            --gold: #bd8b3e;
+            --shadow: 0 18px 50px rgba(42, 54, 43, .07);
         }
+
+        * { box-sizing: border-box; }
 
         body {
-            background-color: var(--bg);
-            color: var(--text); 
-            font-family: 'Inter', sans-serif;
+            min-width: 320px;
+            min-height: 100vh;
+            margin: 0;
+            background: var(--paper);
+            color: var(--ink);
+            font-family: "Aptos", "Segoe UI", sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        button, input, select { font: inherit; }
+        button { color: inherit; }
+        button:focus-visible, input:focus-visible, select:focus-visible {
+            outline: 3px solid rgba(71, 107, 82, .28);
+            outline-offset: 2px;
+        }
+
+        .app-shell {
+            display: grid;
+            grid-template-columns: 252px minmax(0, 1fr);
+            min-height: 100vh;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .sidebar {
             display: flex;
-            justify-content: center;
-            padding-top: 50px;
+            flex-direction: column;
+            padding: 34px 22px 24px;
+            background: #eeefe8;
+            border-right: 1px solid #e6e8df;
         }
 
-        .container {
-            background: var(--card);
-            padding: 2rem;
-            border-radius: 1rem;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            width: 100%;
-            max-width: 400px;
-        }
-
-        .input-group {
+        .brand {
             display: flex;
-            gap: 10px;
-            margin-bottom: 1.5rem;
-        }
-
-        input {
-            flex: 1;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #334155;
-            background: #0f172a;
-            color: white;
-            outline: none;
-        }
-
-        input:focus { border-color: var(--primary); }
-
-        button#addBtn {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: transform 0.2s;
-        }
-
-        button#addBtn:hover { transform: scale(1.05); }
-
-        ul { list-style: none; padding: 0; }
-
-        li {
-            background: #334155;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
             align-items: center;
-            animation: fadeIn 0.3s ease;
+            gap: 11px;
+            margin: 0 0 49px 5px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 0;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .delete-btn {
-            background: #ef4444;
-            border: none;
+        .brand-mark {
+            display: grid;
+            width: 34px;
+            height: 34px;
+            place-items: center;
+            border-radius: 11px 11px 11px 4px;
+            background: var(--green);
             color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
+            font-family: Georgia, serif;
+            font-size: 21px;
+        }
+
+        .side-label {
+            margin: 0 0 11px 11px;
+            color: #929a91;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+        }
+
+        .nav-list { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+
+        .nav-button {
+            display: flex;
+            width: 100%;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 12px;
+            border: 0;
+            border-radius: 7px;
+            background: transparent;
+            color: #657068;
             cursor: pointer;
+            text-align: left;
+            transition: background .18s ease, color .18s ease;
+        }
+
+        .nav-button:hover { background: rgba(255,255,255,.55); color: var(--ink); }
+        .nav-button.active { background: var(--surface); color: var(--green-dark); font-weight: 650; box-shadow: 0 2px 8px rgba(45, 57, 43, .04); }
+        .nav-icon { width: 19px; color: #7c887d; text-align: center; font-size: 16px; }
+        .nav-count { margin-left: auto; color: #89928a; font-size: 12px; }
+        .nav-button.active .nav-count { color: var(--green); }
+
+        .side-divider { height: 1px; margin: 25px 3px 23px; background: #dfe3d9; }
+        .category-list { display: grid; gap: 4px; }
+        .category-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--dot); }
+        .category-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .sidebar-bottom { margin-top: auto; padding: 16px 12px 3px; }
+        .focus-note { padding-top: 16px; border-top: 1px solid #dfe3d9; color: #748078; font-size: 12px; line-height: 1.6; }
+        .focus-note strong { display: block; margin-bottom: 4px; color: #38463b; font-family: Georgia, serif; font-size: 17px; font-weight: 400; }
+
+        main { min-width: 0; padding: 38px clamp(24px, 5vw, 76px) 70px; }
+        .main-inner { width: min(100%, 1040px); margin: 0 auto; }
+
+        .topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 43px; }
+        .date-label { color: var(--muted); font-size: 13px; }
+        .topbar-right { display: flex; align-items: center; gap: 14px; }
+        .avatar { display: grid; width: 37px; height: 37px; place-items: center; border: 1px solid #dce3d9; border-radius: 50%; background: #e2ebe0; color: var(--green-dark); font-family: Georgia, serif; font-size: 15px; }
+        .today-heading { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(34px, 4vw, 46px); font-weight: 400; letter-spacing: 0; line-height: 1.1; }
+        .heading-row { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 30px; }
+        .subtitle { margin: 9px 0 0; color: var(--muted); font-size: 14px; }
+
+        .progress-panel {
+            display: flex;
+            width: 225px;
+            flex: 0 0 auto;
+            align-items: center;
+            gap: 13px;
+            padding: 13px 15px;
+            border: 1px solid #e8e9e0;
+            border-radius: 8px;
+            background: rgba(255,254,250,.65);
+        }
+        .progress-ring { display: grid; width: 39px; height: 39px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: conic-gradient(var(--green) var(--progress), #e6e9df 0); position: relative; }
+        .progress-ring::before { position: absolute; width: 29px; height: 29px; border-radius: 50%; background: var(--surface); content: ""; }
+        .progress-ring span { z-index: 1; color: var(--green-dark); font-size: 10px; font-weight: 700; }
+        .progress-copy strong { display: block; font-size: 12px; font-weight: 650; }
+        .progress-copy span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+
+        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+        .stat { padding: 15px 17px; border: 1px solid #e8e9e1; border-radius: 7px; background: rgba(255,254,250,.65); }
+        .stat-label { color: var(--muted); font-size: 11px; }
+        .stat-value { display: flex; align-items: baseline; gap: 7px; margin-top: 7px; font-family: Georgia, "Times New Roman", serif; font-size: 25px; }
+        .stat-value small { color: #899188; font-family: "Aptos", "Segoe UI", sans-serif; font-size: 11px; }
+
+        .composer {
+            margin-bottom: 31px;
+            padding: 17px;
+            border: 1px solid #e5e8df;
+            border-radius: 8px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+        .composer-top { display: flex; gap: 12px; }
+        .task-input { width: 100%; min-width: 0; padding: 8px 4px 13px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); font-size: 15px; outline: none; }
+        .task-input::placeholder { color: #a3aaa2; }
+        .task-input:focus { border-bottom-color: var(--green); outline: none; }
+        .composer-controls { display: flex; align-items: center; gap: 9px; padding-top: 13px; }
+        .field-control { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: #fffefa; color: #657068; font-size: 11px; }
+        .field-control:focus { border-color: #9aae9c; outline: none; }
+        .add-button { display: inline-flex; min-height: 36px; align-items: center; gap: 8px; margin-left: auto; padding: 0 15px; border: 0; border-radius: 5px; background: var(--green); color: white; cursor: pointer; font-size: 12px; font-weight: 650; transition: background .18s ease, transform .18s ease; }
+        .add-button:hover { transform: translateY(-1px); background: var(--green-dark); }
+
+        .list-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+        .list-title { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 22px; font-weight: 400; }
+        .list-tools { display: flex; align-items: center; gap: 11px; }
+        .search-wrap { position: relative; }
+        .search-icon { position: absolute; top: 50%; left: 10px; color: #929b92; transform: translateY(-50%); font-size: 13px; }
+        .search-input { width: 185px; height: 34px; padding: 0 10px 0 30px; border: 1px solid #e2e6dd; border-radius: 5px; background: rgba(255,254,250,.8); color: var(--ink); font-size: 11px; }
+        .clear-button { padding: 6px 0; border: 0; background: transparent; color: #8b938b; cursor: pointer; font-size: 11px; }
+        .clear-button:hover { color: var(--coral); }
+
+        .filter-tabs { display: flex; gap: 19px; margin-bottom: 12px; border-bottom: 1px solid #e4e7df; }
+        .filter-button { position: relative; padding: 0 1px 10px; border: 0; background: transparent; color: #89928a; cursor: pointer; font-size: 11px; }
+        .filter-button.active { color: var(--green-dark); font-weight: 700; }
+        .filter-button.active::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: var(--green); content: ""; }
+        .task-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+        .task-item { display: flex; min-height: 70px; align-items: center; gap: 14px; padding: 13px 15px; border: 1px solid #e7e9e1; border-radius: 6px; background: var(--surface); animation: enter .24s ease both; }
+        @keyframes enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .complete-button { display: grid; width: 20px; height: 20px; flex: 0 0 auto; place-items: center; padding: 0; border: 1.5px solid #c9d1c8; border-radius: 50%; background: transparent; color: white; cursor: pointer; font-size: 12px; }
+        .complete-button:hover { border-color: var(--green); }
+        .task-item.completed .complete-button { border-color: var(--green); background: var(--green); }
+        .task-content { min-width: 0; flex: 1; }
+        .task-name { overflow-wrap: anywhere; font-size: 13px; font-weight: 550; line-height: 1.45; }
+        .task-item.completed .task-name { color: #9aa29b; text-decoration: line-through; text-decoration-color: #afb6ad; }
+        .task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 5px; color: #8c958c; font-size: 10px; }
+        .task-category { display: inline-flex; align-items: center; gap: 5px; }
+        .task-category .category-dot { width: 6px; height: 6px; }
+        .due-date.overdue { color: var(--coral); }
+        .priority { display: inline-flex; align-items: center; gap: 4px; }
+        .priority-mark { width: 6px; height: 6px; border-radius: 50%; background: var(--priority-color); }
+        .delete-button { width: 30px; height: 30px; flex: 0 0 auto; border: 0; border-radius: 4px; background: transparent; color: #a4aaa3; cursor: pointer; font-size: 17px; opacity: 0; transition: opacity .15s ease, background .15s ease; }
+        .task-item:hover .delete-button, .delete-button:focus-visible { opacity: 1; }
+        .delete-button:hover { background: #f7eae6; color: var(--coral); }
+        .empty-state { display: grid; min-height: 180px; place-content: center; justify-items: center; padding: 24px; color: var(--muted); text-align: center; }
+        .empty-icon { display: grid; width: 42px; height: 42px; place-items: center; margin-bottom: 10px; border-radius: 50%; background: var(--mint); color: var(--green); font-family: Georgia, serif; font-size: 22px; }
+        .empty-state strong { color: #3e4b40; font-family: Georgia, serif; font-size: 17px; font-weight: 400; }
+        .empty-state span { margin-top: 5px; font-size: 11px; }
+
+        @media (max-width: 760px) {
+            .app-shell { grid-template-columns: 1fr; }
+            .sidebar { position: sticky; z-index: 2; top: 0; flex-direction: row; align-items: center; gap: 16px; padding: 11px 20px; border-right: 0; border-bottom: 1px solid #e2e5dc; }
+            .brand { flex: 0 0 auto; gap: 8px; margin: 0; font-size: 20px; }
+            .brand-mark { width: 30px; height: 30px; font-size: 18px; }
+            .side-label, .side-divider, .sidebar-bottom { display: none; }
+            .nav-list { display: flex; min-width: 0; gap: 3px; overflow-x: auto; }
+            .nav-button { width: auto; gap: 7px; padding: 9px 10px; white-space: nowrap; font-size: 12px; }
+            .nav-icon { width: auto; }
+            .category-list { display: none; }
+            main { padding: 28px 22px 50px; }
+            .topbar { margin-bottom: 33px; }
+        }
+
+        @media (max-width: 520px) {
+            .sidebar { gap: 12px; padding: 10px 13px; }
+            .brand { font-size: 18px; }
+            .nav-button { padding: 8px; }
+            .nav-button .nav-count { display: none; }
+            main { padding: 24px 16px 40px; }
+            .topbar { margin-bottom: 28px; }
+            .heading-row { align-items: flex-start; flex-direction: column; gap: 16px; margin-bottom: 22px; }
+            .progress-panel { width: 100%; }
+            .stats-row { gap: 7px; margin-bottom: 20px; }
+            .stat { padding: 12px 10px; }
+            .stat-value { font-size: 21px; }
+            .composer { padding: 13px; }
+            .composer-controls { flex-wrap: wrap; }
+            .field-control { flex: 1 1 calc(50% - 8px); }
+            .add-button { flex: 1 0 100%; justify-content: center; margin: 1px 0 0; }
+            .list-heading { align-items: flex-start; flex-direction: column; }
+            .list-tools { width: 100%; }
+            .search-wrap { flex: 1; }
+            .search-input { width: 100%; }
+            .filter-tabs { gap: 15px; }
+            .task-item { gap: 10px; padding: 12px 10px; }
+            .delete-button { opacity: 1; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Task Master</h2>
-        <div class="input-group">
-            <input type="text" id="taskInput" placeholder="Add a new task...">
-            <button id="addBtn">Add</button>
-        </div>
-        <ul id="taskList"></ul>
-    </div>
+    <div class="app-shell">
+        <aside class="sidebar" aria-label="Task navigation">
+            <div class="brand"><span class="brand-mark" aria-hidden="true">d</span> daymark</div>
+            <div class="side-label">Workspace</div>
+            <nav aria-label="Task views">
+                <ul class="nav-list">
+                    <li><button class="nav-button active" data-view="today"><span class="nav-icon" aria-hidden="true">◷</span> My day <span class="nav-count" id="todayCount">0</span></button></li>
+                    <li><button class="nav-button" data-view="all"><span class="nav-icon" aria-hidden="true">▤</span> All tasks <span class="nav-count" id="allCount">0</span></button></li>
+                    <li><button class="nav-button" data-view="completed"><span class="nav-icon" aria-hidden="true">✓</span> Completed</button></li>
+                </ul>
+            </nav>
+            <div class="side-divider"></div>
+            <div class="side-label">Areas</div>
+            <nav aria-label="Task categories">
+                <ul class="nav-list category-list" id="categoryNav"></ul>
+            </nav>
+            <div class="sidebar-bottom">
+                <div class="focus-note"><strong>A little progress adds up.</strong>Keep your attention on what matters today.</div>
+            </div>
+        </aside>
 
+        <main>
+            <div class="main-inner">
+                <header class="topbar">
+                    <span class="date-label" id="dateLabel"></span>
+                    <div class="topbar-right"><span class="date-label">Your personal workspace</span><div class="avatar" aria-label="Daymark profile">D</div></div>
+                </header>
+                <section aria-labelledby="pageTitle">
+                    <div class="heading-row">
+                        <div><h1 class="today-heading" id="pageTitle">Good morning.</h1><p class="subtitle" id="pageSubtitle">A clear list makes room for good work.</p></div>
+                        <div class="progress-panel" aria-label="Today's completion progress"><div class="progress-ring" id="progressRing"><span id="progressPercent">0%</span></div><div class="progress-copy"><strong id="progressTitle">A fresh start</strong><span id="progressCaption">No tasks due today</span></div></div>
+                    </div>
+                    <div class="stats-row" aria-label="Task summary">
+                        <div class="stat"><div class="stat-label">Open tasks</div><div class="stat-value"><span id="openStat">0</span><small>to focus on</small></div></div>
+                        <div class="stat"><div class="stat-label">Due today</div><div class="stat-value"><span id="dueStat">0</span><small>on your list</small></div></div>
+                        <div class="stat"><div class="stat-label">Completed</div><div class="stat-value"><span id="doneStat">0</span><small>all time</small></div></div>
+                    </div>
+                </section>
+
+                <form class="composer" id="taskForm">
+                    <div class="composer-top"><input class="task-input" id="taskInput" type="text" maxlength="160" placeholder="What needs your attention?" aria-label="Task name" autocomplete="off" required></div>
+                    <div class="composer-controls">
+                        <select class="field-control" id="taskCategory" aria-label="Task category"><option>Personal</option><option>Work</option><option>Learning</option><option>Health</option></select>
+                        <select class="field-control" id="taskPriority" aria-label="Task priority"><option value="normal">Normal priority</option><option value="high">High priority</option><option value="low">Low priority</option></select>
+                        <input class="field-control" id="taskDueDate" type="date" aria-label="Due date">
+                        <button class="add-button" type="submit"><span aria-hidden="true">＋</span> Add task</button>
+                    </div>
+                </form>
+
+                <section aria-labelledby="listTitle">
+                    <div class="list-heading">
+                        <h2 class="list-title" id="listTitle">Today's focus</h2>
+                        <div class="list-tools">
+                            <label class="search-wrap"><span class="search-icon" aria-hidden="true">⌕</span><input class="search-input" id="searchInput" type="search" placeholder="Search tasks" aria-label="Search tasks"></label>
+                            <button class="clear-button" id="clearCompleted" type="button">Clear completed</button>
+                        </div>
+                    </div>
+                    <div class="filter-tabs" role="tablist" aria-label="Filter tasks">
+                        <button class="filter-button active" type="button" role="tab" aria-selected="true" data-filter="all">All</button>
+                        <button class="filter-button" type="button" role="tab" aria-selected="false" data-filter="active">Active</button>
+                        <button class="filter-button" type="button" role="tab" aria-selected="false" data-filter="completed">Completed</button>
+                    </div>
+                    <ul class="task-list" id="taskList" aria-live="polite"></ul>
+                </section>
+            </div>
+        </main>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>
