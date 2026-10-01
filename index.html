@@ -41,6 +41,62 @@
             outline-offset: 2px;
         }
 
+        .auth-shell { display: grid; min-height: 100vh; grid-template-columns: minmax(0, 1.05fr) minmax(400px, .95fr); background: var(--surface); }
+        .auth-shell[hidden], .auth-view[hidden] { display: none; }
+        .auth-story { position: relative; display: flex; min-height: 100vh; flex-direction: column; justify-content: space-between; overflow: hidden; padding: 38px clamp(30px, 6vw, 86px) 34px; background: #e8eee5; }
+        .auth-story::after { position: absolute; right: -110px; bottom: 7%; width: min(35vw, 430px); aspect-ratio: 1; border: 1px solid rgba(71,107,82,.16); border-radius: 50%; box-shadow: 0 0 0 24px rgba(71,107,82,.035), 0 0 0 62px rgba(71,107,82,.025); content: ""; }
+        .auth-brand { display: flex; align-items: center; gap: 10px; color: var(--ink); font-family: Georgia, serif; font-size: 23px; font-weight: 700; }
+        .auth-copy { position: relative; z-index: 1; max-width: 520px; margin: auto 0; padding: 56px 0; }
+        .auth-kicker { display: flex; align-items: center; gap: 8px; color: var(--green); font-size: 10px; font-weight: 750; letter-spacing: 1.4px; text-transform: uppercase; }
+        .auth-kicker::before { width: 20px; height: 1px; background: var(--coral); content: ""; }
+        .auth-story h1 { max-width: 510px; margin: 22px 0 15px; color: #25352a; font-family: Georgia, serif; font-size: clamp(42px, 5.4vw, 72px); font-weight: 400; line-height: 1.02; }
+        .auth-story p { max-width: 365px; margin: 0; color: #6b796d; font-size: 15px; line-height: 1.7; }
+        .auth-footnote { color: #79857b; font-size: 11px; }
+        .auth-panel { display: grid; min-width: 0; place-items: center; padding: 40px 28px; }
+        .auth-card { width: min(100%, 410px); }
+        .auth-card h2 { margin: 0; color: var(--ink); font-family: Georgia, serif; font-size: 32px; font-weight: 400; }
+        .auth-intro { margin: 8px 0 26px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+        .auth-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 21px; padding: 4px; border: 1px solid #e7eae2; border-radius: 6px; background: #f4f5f0; }
+        .auth-mode button { min-height: 35px; border: 0; border-radius: 4px; background: transparent; color: #7b857d; cursor: pointer; font-size: 12px; }
+        .auth-mode button.active { background: white; color: var(--green-dark); font-weight: 700; box-shadow: 0 1px 4px rgba(31,45,34,.08); }
+        .auth-field { display: grid; gap: 7px; margin: 14px 0; color: #526056; font-size: 11px; font-weight: 650; }
+        .auth-field[hidden] { display: none; }
+        .auth-field input { width: 100%; height: 43px; padding: 0 12px; border: 1px solid #dfe5dc; border-radius: 5px; background: #fffefa; color: var(--ink); font-size: 13px; }
+        .auth-field input::placeholder { color: #a4aca4; }
+        .auth-submit { width: 100%; min-height: 43px; margin-top: 7px; border: 0; border-radius: 5px; background: var(--green); color: white; cursor: pointer; font-size: 12px; font-weight: 700; transition: background .18s ease, transform .18s ease; }
+        .auth-submit:hover { transform: translateY(-1px); background: var(--green-dark); }
+        .auth-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; color: #9aa29b; font-size: 10px; }
+        .auth-divider::before, .auth-divider::after { height: 1px; flex: 1; background: #e7eae2; content: ""; }
+        .google-button { display: flex; width: 100%; min-height: 43px; align-items: center; justify-content: center; gap: 10px; border: 1px solid #dfe5dc; border-radius: 5px; background: white; color: #39453c; cursor: pointer; font-size: 12px; font-weight: 650; transition: background .18s ease, border-color .18s ease; }
+        .google-button:hover { border-color: #b7c4b7; background: #fcfcfa; }
+        .google-mark { color: #4285f4; font-family: Arial, sans-serif; font-size: 17px; font-weight: 700; }
+        .auth-message { min-height: 18px; margin: 12px 0 0; color: var(--coral); font-size: 11px; line-height: 1.5; }
+        .auth-message.success { color: var(--green); }
+        .auth-legal { margin: 15px 0 0; color: #9aa29b; font-size: 10px; line-height: 1.6; text-align: center; }
+        .auth-back { margin-top: 24px; padding: 7px 0; border: 0; background: transparent; color: var(--green-dark); cursor: pointer; font-size: 12px; }
+        .auth-back:hover { text-decoration: underline; }
+        .google-note { margin: 16px 0 0; padding: 13px; border-left: 2px solid var(--gold); background: #f6f5ef; color: #69746b; font-size: 12px; line-height: 1.6; }
+        .profile-actions { display: flex; align-items: center; gap: 10px; }
+        .signout-button { padding: 7px 0; border: 0; background: transparent; color: #7b857d; cursor: pointer; font-size: 11px; }
+        .signout-button:hover { color: var(--coral); }
+        .workspace[hidden] { display: none; }
+
+        @media (max-width: 760px) {
+            .auth-shell { grid-template-columns: minmax(0, 1fr); }
+            .auth-story { min-height: auto; padding: 22px 24px 0; background: var(--surface); }
+            .auth-copy { padding: 35px 0 20px; }
+            .auth-story h1 { max-width: 440px; margin: 15px 0 9px; font-size: clamp(36px, 9vw, 54px); }
+            .auth-story p { font-size: 13px; }
+            .auth-footnote { display: none; }
+            .auth-story::after { right: -170px; bottom: -210px; width: 300px; }
+            .auth-panel { place-items: start center; padding: 28px 24px 45px; }
+        }
+
+        @media (max-width: 420px) {
+            .auth-story { padding: 18px 18px 0; }
+            .auth-panel { padding: 23px 18px 36px; }
+        }
+
         .app-shell {
             display: grid;
             grid-template-columns: 252px minmax(0, 1fr);
@@ -279,7 +335,46 @@
     </style>
 </head>
 <body>
-    <div class="app-shell">
+    <section class="auth-shell" id="authScreen" aria-label="Daymark account">
+        <div class="auth-story">
+            <div class="auth-brand"><span class="brand-mark" aria-hidden="true">d</span> daymark</div>
+            <div class="auth-copy">
+                <div class="auth-kicker">A more thoughtful workday</div>
+                <h1>Make room for what matters.</h1>
+                <p>Your plans, priorities, and small wins. All in one calm place, ready when you are.</p>
+            </div>
+            <div class="auth-footnote">A little progress adds up.</div>
+        </div>
+        <div class="auth-panel">
+            <div class="auth-card">
+                <div class="auth-view" id="authFormView">
+                    <h2 id="authTitle">Welcome back</h2>
+                    <p class="auth-intro" id="authIntro">Sign in to pick up where you left off.</p>
+                    <div class="auth-mode" role="tablist" aria-label="Account access">
+                        <button class="active" id="loginMode" type="button" role="tab" aria-selected="true">Log in</button>
+                        <button id="signupMode" type="button" role="tab" aria-selected="false">Create account</button>
+                    </div>
+                    <form id="authForm">
+                        <label class="auth-field" id="nameField" hidden>Username<input id="usernameInput" type="text" maxlength="40" autocomplete="name" placeholder="How should we address you?"></label>
+                        <label class="auth-field">Email address<input id="emailInput" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" required></label>
+                        <label class="auth-field">Password<input id="passwordInput" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="At least 8 characters" required></label>
+                        <button class="auth-submit" id="authSubmit" type="submit">Log in to Daymark</button>
+                    </form>
+                    <div class="auth-divider">or continue with</div>
+                    <button class="google-button" id="googleContinue" type="button"><span class="google-mark" aria-hidden="true">G</span> Continue with Google</button>
+                    <p class="auth-message" id="authMessage" role="status" aria-live="polite"></p>
+                    <p class="auth-legal">Your account is stored in this browser. This demo does not sync across devices.</p>
+                </div>
+                <div class="auth-view" id="googleView" hidden>
+                    <h2>Continue with Google</h2>
+                    <p class="auth-intro">Connect your Google account to access Daymark.</p>
+                    <div class="google-note">Google sign-in needs OAuth credentials and a configured backend. That connection is not set up in this static app yet.</div>
+                    <button class="auth-back" id="backToAuth" type="button">← Back to log in</button>
+                </div>
+            </div>
+        </div>
+    </section>
+    <div class="app-shell workspace" id="workspace" hidden>
         <aside class="sidebar" aria-label="Task navigation">
             <div class="brand"><span class="brand-mark" aria-hidden="true">d</span> daymark</div>
             <div class="side-label">Workspace</div>
@@ -304,7 +399,7 @@
             <div class="main-inner">
                 <header class="topbar">
                     <span class="date-label" id="dateLabel"></span>
-                    <div class="topbar-right"><span class="date-label">Your personal workspace</span><button class="icon-button" id="exportTasks" type="button" aria-label="Export tasks" title="Export tasks as JSON"><span aria-hidden="true">↧</span></button><div class="avatar" aria-label="Daymark profile">D</div></div>
+                    <div class="topbar-right"><span class="date-label" id="profileLabel">Your personal workspace</span><button class="icon-button" id="exportTasks" type="button" aria-label="Export tasks" title="Export tasks as JSON"><span aria-hidden="true">↧</span></button><div class="avatar" id="profileAvatar" aria-label="Daymark profile">D</div><button class="signout-button" id="signOut" type="button">Log out</button></div>
                 </header>
                 <section aria-labelledby="pageTitle">
                     <div class="heading-row">

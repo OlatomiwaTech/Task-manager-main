@@ -1,4 +1,6 @@
-const storageKey = 'proTasks';
+const legacyStorageKey = 'proTasks';
+const usersStorageKey = 'daymarkUsers';
+const sessionStorageKey = 'daymarkSession';
 const categoryColors = {
     Personal: '#d5775f',
     Work: '#63869a',
@@ -8,16 +10,39 @@ const categoryColors = {
 const priorityColors = { high: '#d5775f', normal: '#bd8b3e', low: '#8c9c91' };
 const today = new Date();
 const todayKey = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
-let tasks = loadTasks();
+let currentUser = loadSession();
+let tasks = currentUser ? loadTasks(currentUser.email) : [];
 let currentView = 'today';
 let currentFilter = 'all';
 let editingTaskId = null;
 let undoSnapshot = null;
 let toastTimer;
 
-function loadTasks() {
+function loadSession() {
     try {
-        const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const session = JSON.parse(localStorage.getItem(sessionStorageKey) || 'null');
+        return session && session.email && session.displayName ? session : null;
+    } catch {
+        return null;
+    }
+}
+
+function taskStorageKey(email) {
+    return `daymarkTasks:${email.toLocaleLowerCase()}`;
+}
+
+function loadTasks(email) {
+    try {
+        const key = taskStorageKey(email);
+        let serialized = localStorage.getItem(key);
+        if (serialized === null) {
+            serialized = localStorage.getItem(legacyStorageKey);
+            if (serialized !== null) {
+                localStorage.setItem(key, serialized);
+                localStorage.removeItem(legacyStorageKey);
+            }
+        }
+        const saved = JSON.parse(serialized || '[]');
         if (!Array.isArray(saved)) return [];
         return saved.map((task, index) => ({
             id: task.id || Date.now() + index,
@@ -44,7 +69,8 @@ function formatDate(dateString) {
 }
 
 function saveAndRender() {
-    localStorage.setItem(storageKey, JSON.stringify(tasks));
+    if (!currentUser) return;
+    localStorage.setItem(taskStorageKey(currentUser.email), JSON.stringify(tasks));
     render();
 }
 
@@ -68,7 +94,7 @@ function addTask(event) {
     currentFilter = 'all';
     render();
     input.focus();
-    localStorage.setItem(storageKey, JSON.stringify(tasks));
+    localStorage.setItem(taskStorageKey(currentUser.email), JSON.stringify(tasks));
 }
 
 function showUndo(message, previousTasks) {
@@ -203,7 +229,9 @@ function render() {
 
     const now = new Date();
     const hour = now.getHours();
-    document.getElementById('pageTitle').textContent = hour < 12 ? 'Good morning.' : hour < 17 ? 'Good afternoon.' : 'Good evening.';
+    const firstName = currentUser.displayName.trim().split(/\s+/)[0];
+    const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    document.getElementById('pageTitle').textContent = `${greeting}, ${firstName}.`;
     document.getElementById('dateLabel').textContent = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).format(now);
     const titles = { today: "Today's focus", all: 'All tasks', completed: 'Completed tasks' };
     document.getElementById('listTitle').textContent = currentView.startsWith('category:') ? currentView.slice(9) : titles[currentView];
@@ -249,6 +277,116 @@ function render() {
         visibleTasks.forEach(task => list.append(renderTask(task)));
     }
 }
+
+function showWorkspace(user) {
+    currentUser = user;
+    tasks = loadTasks(user.email);
+    document.getElementById('authScreen').hidden = true;
+    document.getElementById('workspace').hidden = false;
+    document.getElementById('profileLabel').textContent = `${user.displayName}'s workspace`;
+    document.getElementById('profileAvatar').textContent = user.displayName.trim().charAt(0).toUpperCase();
+    document.getElementById('profileAvatar').setAttribute('aria-label', `${user.displayName} profile`);
+    render();
+}
+
+function setAuthMode(mode) {
+    const isSignup = mode === 'signup';
+    document.getElementById('nameField').hidden = !isSignup;
+    document.getElementById('usernameInput').required = isSignup;
+    document.getElementById('usernameInput').autocomplete = isSignup ? 'name' : 'off';
+    document.getElementById('passwordInput').autocomplete = isSignup ? 'new-password' : 'current-password';
+    document.getElementById('authTitle').textContent = isSignup ? 'Create your account' : 'Welcome back';
+    document.getElementById('authIntro').textContent = isSignup ? 'A few details and your workspace is ready.' : 'Sign in to pick up where you left off.';
+    document.getElementById('authSubmit').textContent = isSignup ? 'Create my account' : 'Log in to Daymark';
+    document.getElementById('loginMode').classList.toggle('active', !isSignup);
+    document.getElementById('loginMode').setAttribute('aria-selected', String(!isSignup));
+    document.getElementById('signupMode').classList.toggle('active', isSignup);
+    document.getElementById('signupMode').setAttribute('aria-selected', String(isSignup));
+    document.getElementById('authMessage').textContent = '';
+    document.getElementById('authMessage').classList.remove('success');
+}
+
+function setAuthMessage(message, isSuccess = false) {
+    const element = document.getElementById('authMessage');
+    element.textContent = message;
+    element.classList.toggle('success', isSuccess);
+}
+
+async function hashPassword(password, salt) {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 210000, hash: 'SHA-256' }, key, 256);
+    return Array.from(new Uint8Array(bits), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function readUsers() {
+    try {
+        const users = JSON.parse(localStorage.getItem(usersStorageKey) || '{}');
+        return users && typeof users === 'object' && !Array.isArray(users) ? users : {};
+    } catch {
+        return {};
+    }
+}
+
+async function authenticate(event) {
+    event.preventDefault();
+    const mode = document.getElementById('signupMode').classList.contains('active') ? 'signup' : 'login';
+    const email = document.getElementById('emailInput').value.trim().toLocaleLowerCase();
+    const password = document.getElementById('passwordInput').value;
+    const displayName = document.getElementById('usernameInput').value.trim();
+    const users = readUsers();
+
+    try {
+        if (mode === 'signup') {
+            if (!displayName) return setAuthMessage('Enter the name you want us to use.');
+            if (users[email]) return setAuthMessage('An account with this email already exists. Log in instead.');
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const passwordHash = await hashPassword(password, salt);
+            users[email] = {
+                displayName,
+                salt: Array.from(salt, byte => byte.toString(16).padStart(2, '0')).join(''),
+                passwordHash
+            };
+            localStorage.setItem(usersStorageKey, JSON.stringify(users));
+            currentUser = { email, displayName };
+            localStorage.setItem(sessionStorageKey, JSON.stringify(currentUser));
+            showWorkspace(currentUser);
+            return;
+        }
+
+        const account = users[email];
+        if (!account) return setAuthMessage('No account found for this email. Create an account to get started.');
+        const salt = Uint8Array.from(account.salt.match(/.{2}/g), value => parseInt(value, 16));
+        const passwordHash = await hashPassword(password, salt);
+        if (passwordHash !== account.passwordHash) return setAuthMessage('That password does not match this account.');
+        currentUser = { email, displayName: account.displayName };
+        localStorage.setItem(sessionStorageKey, JSON.stringify(currentUser));
+        showWorkspace(currentUser);
+    } catch {
+        setAuthMessage('This browser could not save your account. Check local storage settings and try again.');
+    }
+}
+
+document.getElementById('loginMode').addEventListener('click', () => setAuthMode('login'));
+document.getElementById('signupMode').addEventListener('click', () => setAuthMode('signup'));
+document.getElementById('authForm').addEventListener('submit', authenticate);
+document.getElementById('googleContinue').addEventListener('click', () => {
+    document.getElementById('authFormView').hidden = true;
+    document.getElementById('googleView').hidden = false;
+});
+document.getElementById('backToAuth').addEventListener('click', () => {
+    document.getElementById('googleView').hidden = true;
+    document.getElementById('authFormView').hidden = false;
+});
+document.getElementById('signOut').addEventListener('click', () => {
+    localStorage.removeItem(sessionStorageKey);
+    currentUser = null;
+    tasks = [];
+    document.getElementById('workspace').hidden = true;
+    document.getElementById('authScreen').hidden = false;
+    document.getElementById('authForm').reset();
+    setAuthMode('login');
+});
 
 document.getElementById('taskForm').addEventListener('submit', addTask);
 document.getElementById('searchInput').addEventListener('input', render);
@@ -297,4 +435,4 @@ document.querySelectorAll('.filter-button').forEach(button => {
     button.addEventListener('click', () => { currentFilter = button.dataset.filter; render(); });
 });
 
-render();
+if (currentUser) showWorkspace(currentUser);
