@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#f5f5f0">
     <title>Daymark | A calmer way to get things done</title>
+    <script>
+        try {
+            if (localStorage.getItem('daymarkTheme') === 'dark') document.documentElement.dataset.theme = 'dark';
+        } catch {}
+    </script>
     <style>
         :root {
             color-scheme: light;
@@ -19,6 +24,21 @@
             --coral: #d5775f;
             --gold: #bd8b3e;
             --shadow: 0 18px 50px rgba(42, 54, 43, .07);
+        }
+
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --paper: #111713;
+            --surface: #1b241e;
+            --ink: #edf2ed;
+            --muted: #a7b2a8;
+            --line: #354138;
+            --green: #52775a;
+            --green-dark: #bfd7c1;
+            --mint: #29392d;
+            --coral: #e99a81;
+            --gold: #d9b66f;
+            --shadow: 0 18px 50px rgba(0, 0, 0, .24);
         }
 
         * { box-sizing: border-box; }
@@ -52,7 +72,8 @@
         .auth-story h1 { max-width: 510px; margin: 22px 0 15px; color: #25352a; font-family: Georgia, serif; font-size: clamp(42px, 5.4vw, 72px); font-weight: 400; line-height: 1.02; }
         .auth-story p { max-width: 365px; margin: 0; color: #6b796d; font-size: 15px; line-height: 1.7; }
         .auth-footnote { color: #79857b; font-size: 11px; }
-        .auth-panel { display: grid; min-width: 0; place-items: center; padding: 40px 28px; }
+        .auth-panel { position: relative; display: grid; min-width: 0; place-items: center; padding: 40px 28px; }
+        .auth-theme-toggle { position: absolute; top: 26px; right: 28px; }
         .auth-card { width: min(100%, 410px); }
         .auth-card h2 { margin: 0; color: var(--ink); font-family: Georgia, serif; font-size: 32px; font-weight: 400; }
         .auth-intro { margin: 8px 0 26px; color: var(--muted); font-size: 13px; line-height: 1.6; }
@@ -365,6 +386,67 @@
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
         }
+
+        [data-theme="dark"] body { background-image: repeating-linear-gradient(0deg, transparent 0, transparent 31px, rgba(180, 205, 183, .025) 32px); }
+        [data-theme="dark"] .auth-story, [data-theme="dark"] .sidebar { background: #18221b; }
+        [data-theme="dark"] .auth-story h1 { color: #e7f0e7; }
+        [data-theme="dark"] .auth-story p, [data-theme="dark"] .auth-footnote { color: #a6b5a8; }
+        [data-theme="dark"] .auth-mode { border-color: #354239; background: #202a23; }
+        [data-theme="dark"] .auth-mode button { color: #acb8ad; }
+        [data-theme="dark"] .auth-mode button.active { background: #303c33; color: var(--ink); }
+        [data-theme="dark"] .auth-field { color: #c4cec5; }
+        [data-theme="dark"] .auth-field input, [data-theme="dark"] .task-input, [data-theme="dark"] .field-control, [data-theme="dark"] .search-input, [data-theme="dark"] .sort-select, [data-theme="dark"] .dialog-field input, [data-theme="dark"] .dialog-field select, [data-theme="dark"] .dialog-field textarea { border-color: #3a473d; background-color: #151d18; color: var(--ink); }
+        [data-theme="dark"] .auth-field input::placeholder, [data-theme="dark"] .task-input::placeholder { color: #859388; }
+        [data-theme="dark"] .auth-divider { color: #a2ada3; }
+        [data-theme="dark"] .auth-divider::before, [data-theme="dark"] .auth-divider::after { background: #354138; }
+        [data-theme="dark"] .google-button { border-color: #3a473d; background: #222d25; color: #edf2ed; }
+        [data-theme="dark"] .google-button:hover { border-color: #627767; background: #29362d; }
+        [data-theme="dark"] .auth-legal { color: #a0aaa1; }
+        [data-theme="dark"] .google-note { background: #292a22; color: #c1c9bd; }
+        [data-theme="dark"] .signout-button, [data-theme="dark"] .side-label, [data-theme="dark"] .date-label, [data-theme="dark"] .subtitle, [data-theme="dark"] .stat-label, [data-theme="dark"] .stat-value small { color: var(--muted); }
+        [data-theme="dark"] .sidebar { border-color: #303a32; }
+        [data-theme="dark"] .nav-button { color: #b2beb4; }
+        [data-theme="dark"] .nav-button:hover { background: rgba(255, 255, 255, .06); color: var(--ink); }
+        [data-theme="dark"] .nav-button.active { background: #263229; color: var(--green-dark); }
+        [data-theme="dark"] .nav-icon, [data-theme="dark"] .nav-count { color: #a4b0a5; }
+        [data-theme="dark"] .side-divider, [data-theme="dark"] .focus-note { border-color: #354138; background-color: transparent; }
+        [data-theme="dark"] .focus-note, [data-theme="dark"] .nav-button.active .nav-count { color: #aab7ac; }
+        [data-theme="dark"] .focus-note strong { color: #dce8dd; }
+        [data-theme="dark"] .icon-button { border-color: #3a473d; background: #202a23; color: #d0dfd1; }
+        [data-theme="dark"] .icon-button:hover { background: #2a382d; color: #f1f6f1; }
+        [data-theme="dark"] .avatar { border-color: #425447; background: #2a3b2e; color: #d7e7d8; }
+        [data-theme="dark"] .progress-panel, [data-theme="dark"] .stat { border-color: #354138; background: rgba(27, 36, 30, .82); }
+        [data-theme="dark"] .progress-ring { background: conic-gradient(var(--green) var(--progress), #36423a 0); }
+        [data-theme="dark"] .progress-ring::before { background: var(--surface); }
+        [data-theme="dark"] .progress-ring span { color: var(--green-dark); }
+        [data-theme="dark"] .composer { border-color: #354138; background: var(--surface); }
+        [data-theme="dark"] .ai-plan-button { border-color: #3d5241; background: #25342a; color: #d3e4d4; }
+        [data-theme="dark"] .ai-plan-button:hover { border-color: #627967; background: #2d4032; }
+        [data-theme="dark"] .field-control { color: #d2ddd3; }
+        [data-theme="dark"] .search-icon, [data-theme="dark"] .clear-button, [data-theme="dark"] .import-button { color: #a7b2a8; }
+        [data-theme="dark"] .sort-select { color: #d2ddd3; }
+        [data-theme="dark"] .filter-tabs { border-color: #354138; }
+        [data-theme="dark"] .filter-button { color: #a7b2a8; }
+        [data-theme="dark"] .filter-button.active { color: var(--green-dark); }
+        [data-theme="dark"] .task-item { border-color: #354138; background: var(--surface); }
+        [data-theme="dark"] .complete-button, [data-theme="dark"] .subtask-toggle { border-color: #68776b; }
+        [data-theme="dark"] .task-item.completed .task-name, [data-theme="dark"] .subtask-item.completed span { color: #94a096; }
+        [data-theme="dark"] .task-note, [data-theme="dark"] .subtask-progress { color: #a4b1a5; }
+        [data-theme="dark"] .task-meta, [data-theme="dark"] .subtask-item { color: #b1beb3; }
+        [data-theme="dark"] .keyword-chip { border-color: #405344; background: #29392d; color: #c6dbc8; }
+        [data-theme="dark"] .recurrence-label { color: #b9cfbc; }
+        [data-theme="dark"] .task-action { color: #afbbb0; }
+        [data-theme="dark"] .task-action:hover { background: #2b392e; color: #e2eee3; }
+        [data-theme="dark"] .task-action.delete:hover { background: #432d28; color: #f0a18b; }
+        [data-theme="dark"] .empty-state strong { color: #dce8dd; }
+        [data-theme="dark"] .edit-dialog { border-color: #39473d; background: var(--surface); color: var(--ink); }
+        [data-theme="dark"] .dialog-field { color: #c2cec3; }
+        [data-theme="dark"] .dialog-button { border-color: #3d4b40; background: #222d25; color: #d3ddd4; }
+        [data-theme="dark"] .dialog-button.primary { border-color: var(--green); background: var(--green); color: white; }
+        [data-theme="dark"] .shortcut-list li { color: #c0cbc1; }
+        [data-theme="dark"] .shortcut-list kbd { border-color: #3d4b40; background: #242f27; color: #c8ddca; }
+        [data-theme="dark"] .focus-clock { border-color: #3d4c40; background: radial-gradient(circle, #1b241e 60%, #304235 61%, #304235 69%, #1b241e 70%); color: #d8e9d9; }
+        [data-theme="dark"] .focus-task-label { color: #adb9ae; }
     </style>
 </head>
 <body>
@@ -379,6 +461,7 @@
             <div class="auth-footnote">A little progress adds up.</div>
         </div>
         <div class="auth-panel">
+            <button class="icon-button auth-theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark theme" title="Switch to dark theme"><span aria-hidden="true">☾</span></button>
             <div class="auth-card">
                 <div class="auth-view" id="authFormView">
                     <h2 id="authTitle">Welcome back</h2>
@@ -434,7 +517,7 @@
             <div class="main-inner">
                 <header class="topbar">
                     <span class="date-label" id="dateLabel"></span>
-                    <div class="topbar-right"><span class="date-label" id="profileLabel">Your personal workspace</span><button class="icon-button" id="showFocus" type="button" aria-label="Start a focus session" title="Focus session"><span aria-hidden="true">◷</span></button><button class="icon-button" id="showShortcuts" type="button" aria-label="Show keyboard shortcuts" title="Keyboard shortcuts (?)"><span aria-hidden="true">?</span></button><button class="icon-button" id="exportTasks" type="button" aria-label="Export tasks" title="Export tasks as JSON"><span aria-hidden="true">↧</span></button><div class="avatar" id="profileAvatar" aria-label="Daymark profile">D</div><button class="signout-button" id="signOut" type="button">Log out</button></div>
+                    <div class="topbar-right"><span class="date-label" id="profileLabel">Your personal workspace</span><button class="icon-button" type="button" data-theme-toggle aria-label="Switch to dark theme" title="Switch to dark theme"><span aria-hidden="true">☾</span></button><button class="icon-button" id="showFocus" type="button" aria-label="Start a focus session" title="Focus session"><span aria-hidden="true">◷</span></button><button class="icon-button" id="showShortcuts" type="button" aria-label="Show keyboard shortcuts" title="Keyboard shortcuts (?)"><span aria-hidden="true">?</span></button><button class="icon-button" id="exportTasks" type="button" aria-label="Export tasks" title="Export tasks as JSON"><span aria-hidden="true">↧</span></button><div class="avatar" id="profileAvatar" aria-label="Daymark profile">D</div><button class="signout-button" id="signOut" type="button">Log out</button></div>
                 </header>
                 <section aria-labelledby="pageTitle">
                     <div class="heading-row">

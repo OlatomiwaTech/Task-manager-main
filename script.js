@@ -1,6 +1,7 @@
 const legacyStorageKey = 'proTasks';
 const usersStorageKey = 'daymarkUsers';
 const sessionStorageKey = 'daymarkSession';
+const themeStorageKey = 'daymarkTheme';
 const categoryColors = {
     Personal: '#d5775f',
     Work: '#63869a',
@@ -28,6 +29,21 @@ function loadSession() {
     } catch {
         return null;
     }
+}
+
+function applyTheme(theme) {
+    const isDark = theme === 'dark';
+    document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+    document.querySelector('meta[name="theme-color"]').content = isDark ? '#111713' : '#f5f5f0';
+    document.querySelectorAll('[data-theme-toggle]').forEach(button => {
+        const label = isDark ? 'Switch to light theme' : 'Switch to dark theme';
+        button.setAttribute('aria-label', label);
+        button.title = label;
+        button.innerHTML = `<span aria-hidden="true">${isDark ? '☀' : '☾'}</span>`;
+    });
+    try {
+        localStorage.setItem(themeStorageKey, isDark ? 'dark' : 'light');
+    } catch {}
 }
 
 function taskStorageKey(email) {
@@ -561,6 +577,10 @@ async function authenticate(event) {
 }
 
 document.getElementById('loginMode').addEventListener('click', () => setAuthMode('login'));
+document.querySelectorAll('[data-theme-toggle]').forEach(button => {
+    button.addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+});
+applyTheme(document.documentElement.dataset.theme || localStorage.getItem(themeStorageKey) || 'light');
 document.getElementById('signupMode').addEventListener('click', () => setAuthMode('signup'));
 document.getElementById('authForm').addEventListener('submit', authenticate);
 document.getElementById('googleContinue').addEventListener('click', () => {
