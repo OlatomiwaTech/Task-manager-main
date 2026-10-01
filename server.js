@@ -1,6 +1,7 @@
 const { createServer } = require('node:http');
 const { readFile } = require('node:fs/promises');
 const path = require('node:path');
+const ICAL = require('ical.js');
 
 try {
     process.loadEnvFile('.env');
@@ -26,15 +27,67 @@ function sendJson(response, statusCode, body) {
     response.end(JSON.stringify(body));
 }
 
-async function readJson(request) {
+async function readJson(request, maxBytes = 12_000) {
     const chunks = [];
     let size = 0;
     for await (const chunk of request) {
         size += chunk.length;
-        if (size > 12_000) throw Object.assign(new Error('Request is too large.'), { statusCode: 413 });
+        if (size > maxBytes) throw Object.assign(new Error('Request is too large.'), { statusCode: 413 });
         chunks.push(chunk);
     }
     return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+}
+
+async function importCalendar(request, response) {
+    let payload;
+    try {
+        payload = await readJson(request, 2 * 1024 * 1024);
+    } catch (error) {
+        sendJson(response, error.statusCode || 400, { error: error.statusCode ? error.message : 'Send a valid calendar file.' });
+        return;
+    }
+    if (!payload || typeof payload.calendar !== 'string' || !payload.calendar.trim()) {
+        sendJson(response, 400, { error: 'The calendar file is empty or invalid.' });
+        return;
+    }
+
+    try {
+        const calendar = new ICAL.Component(ICAL.parse(payload.calendar));
+        if (calendar.name !== 'vcalendar') throw new Error('The file is not an iCalendar calendar.');
+        const tasks = calendar.getAllSubcomponents('vevent').slice(0, 500).flatMap(component => {
+            const event = new ICAL.Event(component);
+            const title = String(event.summary || '').trim().slice(0, 160);
+            const dueDate = event.startDate?.toString().slice(0, 10) || '';
+            if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return [];
+
+            const description = String(component.getFirstPropertyValue('description') || '');
+            const checklistMatch = description.match(/(?:^|\n)Checklist:\n([\s\S]*)$/);
+            const subtaskLines = checklistMatch ? checklistMatch[1].split('\n') : [];
+            const subtasks = subtaskLines.map(line => {
+                const match = line.match(/^\[([ xX])\]\s*(.*)$/);
+                return match ? { text: match[2].trim().slice(0, 160), completed: match[1].toLowerCase() === 'x' } : null;
+            }).filter(item => item && item.text).slice(0, 12);
+            const keywordMatch = description.match(/(?:^|\n)Keywords:\s*(.*)$/m);
+            const keywords = keywordMatch ? keywordMatch[1].split(',').map(keyword => keyword.trim().replace(/^#+/, '').toLowerCase()).filter(Boolean).slice(0, 8) : [];
+            const notes = description
+                .replace(/(?:^|\n)Keywords:\s*.*$/m, '')
+                .replace(/(?:^|\n)Checklist:\n[\s\S]*$/, '')
+                .trim()
+                .slice(0, 1000);
+            const rule = component.getFirstPropertyValue('rrule');
+            const recurrence = ['DAILY', 'WEEKLY', 'MONTHLY'].includes(rule?.freq) ? rule.freq.toLowerCase() : 'none';
+            const categoryValue = component.getFirstPropertyValue('categories');
+            const category = Array.isArray(categoryValue) ? String(categoryValue[0] || 'Personal') : String(categoryValue || 'Personal');
+            return [{ title, text: title, dueDate, recurrence, category, priority: 'normal', completed: false, notes, keywords, subtasks }];
+        });
+        if (!tasks.length) {
+            sendJson(response, 422, { error: 'No calendar events with a title and start date were found.' });
+            return;
+        }
+        sendJson(response, 200, { tasks });
+    } catch {
+        sendJson(response, 400, { error: 'Could not parse this iCalendar file.' });
+    }
 }
 
 async function planTask(request, response) {
@@ -124,6 +177,16 @@ const server = createServer(async (request, response) => {
         } catch (error) {
             console.error('AI route failed:', error.message);
             if (!response.headersSent) sendJson(response, 500, { error: 'The planner encountered a server error. Restart Daymark and try again.' });
+            else response.destroy();
+        }
+        return;
+    }
+    if (request.method === 'POST' && pathname === '/api/calendar/import') {
+        try {
+            await importCalendar(request, response);
+        } catch (error) {
+            console.error('Calendar import failed:', error.message);
+            if (!response.headersSent) sendJson(response, 500, { error: 'Could not import this calendar file.' });
             else response.destroy();
         }
         return;
