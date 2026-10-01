@@ -1021,11 +1021,66 @@ function renderFocusClock() {
     document.getElementById('focusClock').textContent = `${minutes}:${seconds}`;
 }
 
+function focusPreferencesKey() {
+    return `daymarkFocusPreferences:${currentUser.email}`;
+}
+
+function focusHistoryKey() {
+    return `daymarkFocusHistory:${currentUser.email}`;
+}
+
+function loadFocusPreferences() {
+    const defaults = { focusMinutes: 25, breakMinutes: 5 };
+    try {
+        const saved = JSON.parse(localStorage.getItem(focusPreferencesKey()) || '{}');
+        return {
+            focusMinutes: [15, 25, 45, 60].includes(Number(saved.focusMinutes)) ? Number(saved.focusMinutes) : defaults.focusMinutes,
+            breakMinutes: [5, 10, 15].includes(Number(saved.breakMinutes)) ? Number(saved.breakMinutes) : defaults.breakMinutes
+        };
+    } catch {
+        return defaults;
+    }
+}
+
+function saveFocusPreferences(preferences) {
+    if (currentUser) localStorage.setItem(focusPreferencesKey(), JSON.stringify(preferences));
+}
+
+function readFocusHistory() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(focusHistoryKey()) || '[]');
+        return Array.isArray(saved) ? saved : [];
+    } catch {
+        return [];
+    }
+}
+
+function renderFocusHistory() {
+    const history = readFocusHistory();
+    const totalMinutes = history.reduce((total, session) => total + (Number(session.minutes) || 0), 0);
+    document.getElementById('focusHistory').textContent = history.length
+        ? `${history.length} completed session${history.length === 1 ? '' : 's'} · ${totalMinutes} focused minutes`
+        : 'No completed focus sessions yet.';
+}
+
+function recordFocusSession(minutes, taskId) {
+    const history = readFocusHistory();
+    history.push({ completedAt: new Date().toISOString(), minutes, taskId: taskId || null });
+    localStorage.setItem(focusHistoryKey(), JSON.stringify(history.slice(-500)));
+    renderFocusHistory();
+}
+
 function openFocusSession(task = null) {
     focusTaskId = task ? task.id : null;
     document.getElementById('focusTaskLabel').textContent = task ? task.text : 'A little focused time goes a long way.';
     document.getElementById('focusStatus').textContent = 'Ready when you are.';
-    focusSeconds = 25 * 60;
+    const preferences = loadFocusPreferences();
+    document.getElementById('focusDuration').value = String(preferences.focusMinutes);
+    document.getElementById('focusBreakDuration').value = String(preferences.breakMinutes);
+    focusMode = 'focus';
+    focusTotalSeconds = preferences.focusMinutes * 60;
+    focusSeconds = focusTotalSeconds;
+    renderFocusHistory();
     renderFocusClock();
     document.getElementById('toggleFocus').textContent = 'Start focus';
     document.getElementById('focusDialog').showModal();
@@ -1044,22 +1099,65 @@ document.getElementById('toggleFocus').addEventListener('click', () => {
         document.getElementById('focusStatus').textContent = 'Session paused.';
         return;
     }
-    document.getElementById('focusStatus').textContent = focusTaskId ? 'Stay with this task. You are doing great.' : 'Stay with one thing at a time.';
+    if (focusSeconds === 0) {
+        focusSeconds = focusTotalSeconds;
+        renderFocusClock();
+    }
+    document.getElementById('focusStatus').textContent = focusMode === 'break'
+        ? 'Take a breath. Your next focus block is ready when you are.'
+        : focusTaskId ? 'Stay with this task. You are doing great.' : 'Stay with one thing at a time.';
     document.getElementById('toggleFocus').textContent = 'Pause';
     focusTimer = setInterval(() => {
         focusSeconds = Math.max(0, focusSeconds - 1);
         renderFocusClock();
         if (focusSeconds === 0) {
             stopFocusSession();
-            document.getElementById('focusStatus').textContent = 'Session complete. Take a short break.';
+            if (focusMode === 'focus') {
+                const focusMinutes = Number(document.getElementById('focusDuration').value);
+                recordFocusSession(focusMinutes, focusTaskId);
+                const breakMinutes = Number(document.getElementById('focusBreakDuration').value);
+                focusMode = 'break';
+                focusTotalSeconds = breakMinutes * 60;
+                document.getElementById('toggleFocus').textContent = `Start ${breakMinutes}-minute break`;
+                document.getElementById('focusStatus').textContent = `Focus complete. Take a ${breakMinutes}-minute break.`;
+            } else {
+                focusMode = 'focus';
+                focusTotalSeconds = Number(document.getElementById('focusDuration').value) * 60;
+                document.getElementById('toggleFocus').textContent = 'Start focus';
+                document.getElementById('focusStatus').textContent = 'Break complete. Ready for another focus session.';
+            }
         }
     }, 1000);
 });
 document.getElementById('resetFocus').addEventListener('click', () => {
     stopFocusSession();
-    focusSeconds = 25 * 60;
+    focusMode = 'focus';
+    focusTotalSeconds = Number(document.getElementById('focusDuration').value) * 60;
+    focusSeconds = focusTotalSeconds;
     renderFocusClock();
+    document.getElementById('toggleFocus').textContent = 'Start focus';
     document.getElementById('focusStatus').textContent = 'Ready when you are.';
+});
+document.getElementById('focusDuration').addEventListener('change', event => {
+    const preferences = loadFocusPreferences();
+    preferences.focusMinutes = Number(event.target.value);
+    saveFocusPreferences(preferences);
+    if (focusMode === 'focus' && !focusTimer) {
+        focusTotalSeconds = preferences.focusMinutes * 60;
+        focusSeconds = focusTotalSeconds;
+        renderFocusClock();
+    }
+});
+document.getElementById('focusBreakDuration').addEventListener('change', event => {
+    const preferences = loadFocusPreferences();
+    preferences.breakMinutes = Number(event.target.value);
+    saveFocusPreferences(preferences);
+    if (focusMode === 'break' && !focusTimer) {
+        focusTotalSeconds = preferences.breakMinutes * 60;
+        focusSeconds = focusTotalSeconds;
+        renderFocusClock();
+        document.getElementById('toggleFocus').textContent = `Start ${preferences.breakMinutes}-minute break`;
+    }
 });
 document.getElementById('closeFocus').addEventListener('click', () => document.getElementById('focusDialog').close());
 document.getElementById('focusDialog').addEventListener('close', stopFocusSession);
