@@ -211,7 +211,6 @@
         .task-item:hover .task-action, .task-action:focus-visible { opacity: 1; }
         .task-action:hover { background: #edf1e9; color: var(--green-dark); }
         .task-action.delete:hover { background: #f7eae6; color: var(--coral); }
-        .delete-button:hover { background: #f7eae6; color: var(--coral); }
         .empty-state { display: grid; min-height: 180px; place-content: center; justify-items: center; padding: 24px; color: var(--muted); text-align: center; }
         .empty-icon { display: grid; width: 42px; height: 42px; place-items: center; margin-bottom: 10px; border-radius: 50%; background: var(--mint); color: var(--green); font-family: Georgia, serif; font-size: 22px; }
         .empty-state strong { color: #3e4b40; font-family: Georgia, serif; font-size: 17px; font-weight: 400; }
@@ -238,6 +237,8 @@
             .brand { flex: 0 0 auto; gap: 8px; margin: 0; font-size: 20px; }
             .brand-mark { width: 30px; height: 30px; font-size: 18px; }
             .side-label, .side-divider, .sidebar-bottom { display: none; }
+            nav[aria-label="Task views"] { min-width: 0; flex: 1; overflow: hidden; }
+            nav[aria-label="Task categories"] { display: none; }
             .nav-list { display: flex; min-width: 0; gap: 3px; overflow-x: auto; }
             .nav-button { width: auto; gap: 7px; padding: 9px 10px; white-space: nowrap; font-size: 12px; }
             .nav-icon { width: auto; }
