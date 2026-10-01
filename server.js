@@ -85,7 +85,19 @@ async function planTask(request, response) {
         });
 
         if (!upstream.ok) {
-            sendJson(response, 502, { error: `AI provider request failed (${upstream.status}). Check your model and API account.` });
+            const providerError = await upstream.json().catch(() => ({}));
+            const errorCode = providerError.error?.code;
+            let message = `AI provider request failed (${upstream.status}). Check your model and API account.`;
+            if (upstream.status === 429 && ['insufficient_quota', 'credit_balance_exhausted'].includes(errorCode)) {
+                message = 'Your OpenAI API project has no available credits. Add API billing or credits, then try again.';
+            } else if (upstream.status === 429) {
+                message = 'OpenAI rate limit reached. Wait a moment and try again.';
+            } else if (upstream.status === 401) {
+                message = 'OpenAI rejected the API key. Check OPENAI_API_KEY in .env and restart Daymark.';
+            } else if (upstream.status === 403) {
+                message = 'This API key cannot use the selected model. Check your project permissions or change OPENAI_MODEL.';
+            }
+            sendJson(response, 502, { error: message });
             return;
         }
 

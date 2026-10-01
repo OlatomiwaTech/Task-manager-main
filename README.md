@@ -28,7 +28,7 @@ Daymark's AI planner uses a small local Node.js server so your API key stays out
 3. Start Daymark with `npm start`.
 4. Open the local URL printed by the server (by default, `http://127.0.0.1:4173`).
 
-The AI planner sends the current task title and notes to OpenAI only when you click **Plan with AI**. The API key remains on the local server. Do not commit `.env`; it is ignored by Git. Other app features continue to work without an API key.
+The AI planner sends the current task title and notes to OpenAI only when you click **Plan with AI**. The API key remains on the local server. OpenAI API access also requires available project credits; a valid key alone does not include usage. Do not commit `.env`; it is ignored by Git. Other app features continue to work without an API key.
 
 ## Storage and sign-in
 
