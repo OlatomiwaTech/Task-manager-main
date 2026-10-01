@@ -119,7 +119,13 @@ async function planTask(request, response) {
 const server = createServer(async (request, response) => {
     const pathname = new URL(request.url, `http://${host}`).pathname;
     if (request.method === 'POST' && pathname === '/api/ai/plan') {
-        await planTask(request, response);
+        try {
+            await planTask(request, response);
+        } catch (error) {
+            console.error('AI route failed:', error.message);
+            if (!response.headersSent) sendJson(response, 500, { error: 'The planner encountered a server error. Restart Daymark and try again.' });
+            else response.destroy();
+        }
         return;
     }
 

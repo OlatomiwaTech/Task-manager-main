@@ -154,8 +154,19 @@ async function generateTaskPlan() {
                 notes: document.getElementById('taskNotes').value.trim()
             })
         });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'The AI planner could not create a plan.');
+        const responseText = await response.text();
+        let result = null;
+        if (responseText.trim()) {
+            try {
+                result = JSON.parse(responseText);
+            } catch {
+                throw new Error(`Planner returned an unreadable response (HTTP ${response.status}). Restart Daymark and try again.`);
+            }
+        }
+        if (!response.ok) throw new Error(result?.error || `Planner request failed (HTTP ${response.status}).`);
+        if (!result || !Array.isArray(result.subtasks)) {
+            throw new Error(`Planner returned an empty response (HTTP ${response.status}). Restart Daymark and try again.`);
+        }
 
         const currentSubtasks = parseSubtasks(document.getElementById('taskSubtasks').value);
         const suggestedSubtasks = Array.isArray(result.subtasks) ? result.subtasks : [];
