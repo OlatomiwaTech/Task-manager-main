@@ -11,6 +11,9 @@ const categoryColors = {
 const priorityColors = { high: '#d5775f', normal: '#bd8b3e', low: '#8c9c91' };
 const today = new Date();
 const todayKey = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
+}
 let currentUser = loadSession();
 let tasks = currentUser ? loadTasks(currentUser.email) : [];
 let currentView = 'today';

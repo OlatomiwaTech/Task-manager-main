@@ -15,7 +15,10 @@ const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const staticFiles = new Map([
     ['/', ['index.html', 'text/html; charset=utf-8']],
     ['/index.html', ['index.html', 'text/html; charset=utf-8']],
-    ['/script.js', ['script.js', 'text/javascript; charset=utf-8']]
+    ['/script.js', ['script.js', 'text/javascript; charset=utf-8']],
+    ['/service-worker.js', ['service-worker.js', 'text/javascript; charset=utf-8']],
+    ['/manifest.webmanifest', ['manifest.webmanifest', 'application/manifest+json; charset=utf-8']],
+    ['/daymark-icon.svg', ['daymark-icon.svg', 'image/svg+xml']]
 ]);
 
 function sendJson(response, statusCode, body) {
