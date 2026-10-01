@@ -31,3 +31,6 @@ Profiles and tasks are stored in the browser's local storage. They do not sync b
 ## GitHub topics
 
 `task-manager` `productivity` `todo-app` `vanilla-javascript` `javascript` `html` `css` `localstorage` `recurring-tasks` `responsive-design` `frontend` `web-app`
+
+
+This is my journey as a Programmer. April 15, 2025
