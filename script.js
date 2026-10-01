@@ -460,7 +460,7 @@ function toggleSubtask(taskId, subtaskId) {
 }
 
 function deleteTask(id) {
-    tasks = tasks.filter(task => task.id !== id);
+    tasks = tasks.filter(task => task.id !== id).map(task => String(task.dependencyTaskId || '') === String(id) ? { ...task, dependencyTaskId: '' } : task);
     saveAndRender();
 }
 
@@ -532,7 +532,7 @@ function renderTask(task) {
     priority.className = 'priority';
     priority.innerHTML = `<span class="priority-mark" style="--priority-color: ${priorityColors[task.priority]}"></span>${task.priority[0].toUpperCase()}${task.priority.slice(1)} priority`;
     meta.append(category, due, priority);
-    const prerequisite = task.dependencyTaskId ? tasks.find(item => String(item.id) === task.dependencyTaskId) : null;
+    const prerequisite = task.dependencyTaskId ? tasks.find(item => String(item.id) === String(task.dependencyTaskId)) : null;
     if (prerequisite) {
         const dependency = document.createElement('span');
         dependency.className = 'dependency-label';
@@ -622,6 +622,8 @@ function renderTask(task) {
 }
 
 function render() {
+    const taskDependency = document.getElementById('taskDependency');
+    populateDependencySelect(taskDependency, taskDependency.value);
     const openTasks = tasks.filter(task => !task.completed);
     const dueToday = openTasks.filter(task => task.dueDate === todayKey);
     const completedCount = tasks.filter(task => task.completed).length;
@@ -915,6 +917,7 @@ document.getElementById('editForm').addEventListener('submit', async event => {
         text: document.getElementById('editTaskName').value.trim(),
         category: document.getElementById('editTaskCategory').value,
         priority: document.getElementById('editTaskPriority').value,
+        dependencyTaskId: document.getElementById('editTaskDependency').value || '',
         dueDate: document.getElementById('editTaskDueDate').value,
         reminderAt,
         reminderSent: reminderAt === task.reminderAt ? task.reminderSent : false,
@@ -1049,10 +1052,16 @@ async function importTasksFromFile(event) {
             data = JSON.parse(await file.text());
         }
         const rows = Array.isArray(data) ? data : data && Array.isArray(data.tasks) ? data.tasks : [];
-        const imported = rows.slice(0, 500).filter(task => task && typeof task.text === 'string' && task.text.trim()).map(task => ({
-            id: crypto.randomUUID(),
+        const sourceRows = rows.slice(0, 500).filter(task => task && typeof task.text === 'string' && task.text.trim());
+        const importedIds = new Map();
+        sourceRows.forEach(task => {
+            if (task.id !== undefined && task.id !== null) importedIds.set(String(task.id), crypto.randomUUID());
+        });
+        const imported = sourceRows.map(task => ({
+            id: importedIds.get(String(task.id)) || crypto.randomUUID(),
             text: task.text.trim().slice(0, 160),
             completed: Boolean(task.completed),
+            dependencyTaskId: importedIds.get(String(task.dependencyTaskId)) || '',
             category: categoryColors[task.category] ? task.category : 'Personal',
             priority: priorityColors[task.priority] ? task.priority : 'normal',
             dueDate: typeof task.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(task.dueDate) ? task.dueDate : '',
