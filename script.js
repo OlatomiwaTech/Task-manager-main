@@ -988,7 +988,26 @@ async function importTasksFromFile(event) {
     if (!file) return;
     try {
         if (file.size > 2 * 1024 * 1024) throw new Error('The file is larger than 2 MB.');
-        const data = JSON.parse(await file.text());
+        const isCalendar = file.name.toLowerCase().endsWith('.ics') || file.type === 'text/calendar';
+        let data;
+        if (isCalendar) {
+            const response = await fetch('/api/calendar/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ calendar: await file.text() })
+            });
+            const responseText = await response.text();
+            let result = null;
+            try {
+                result = responseText ? JSON.parse(responseText) : null;
+            } catch {
+                throw new Error(`Calendar import returned an unreadable response (HTTP ${response.status}).`);
+            }
+            if (!response.ok) throw new Error(result?.error || `Calendar import failed (HTTP ${response.status}).`);
+            data = result;
+        } else {
+            data = JSON.parse(await file.text());
+        }
         const rows = Array.isArray(data) ? data : data && Array.isArray(data.tasks) ? data.tasks : [];
         const imported = rows.slice(0, 500).filter(task => task && typeof task.text === 'string' && task.text.trim()).map(task => ({
             id: crypto.randomUUID(),
@@ -1011,7 +1030,9 @@ async function importTasksFromFile(event) {
         saveAndRender();
         showUndo(`Imported ${imported.length} task${imported.length === 1 ? '' : 's'}`, previousTasks);
     } catch (error) {
-        const message = error.message.startsWith('The file') || error.message.startsWith('No valid') ? error.message : 'Could not read that file. Choose a Daymark JSON export.';
+        const message = error.message.startsWith('The file') || error.message.startsWith('No valid') || error.message.startsWith('Could not parse') || error.message.startsWith('Calendar import')
+            ? error.message
+            : 'Could not read that file. Choose a Daymark JSON export or an iCalendar (.ics) file.';
         showUndo(message, null);
     } finally {
         event.target.value = '';
